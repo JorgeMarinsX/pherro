@@ -22,54 +22,72 @@ const cover = computed(() =>
 </script>
 
 <template>
-  <NuxtLink
+  <ULink
     :to="`/veiculos/${vehicle.id}`"
-    class="group block overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:border-[#8B1A1A] hover:shadow-lg"
+    class="group block"
   >
-    <div class="relative aspect-[4/3] w-full overflow-hidden bg-neutral-100">
-      <img
-        v-if="cover"
-        :src="cover"
-        :alt="`${vehicle.make} ${vehicle.model}`"
-        class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-        loading="lazy"
-      >
-      <div v-else class="flex h-full w-full items-center justify-center text-neutral-400">
-        <UIcon name="i-lucide-car" class="size-12" />
-      </div>
-      <UBadge
-        color="primary"
-        variant="solid"
-        class="absolute left-3 top-3"
-      >
-        {{ vehicle.year }}
-      </UBadge>
-    </div>
+    <UCard
+      :ui="{
+        root: 'overflow-hidden border-neutral-200 transition hover:-translate-y-0.5 hover:border-primary-600 hover:shadow-xl',
+        body: 'p-4',
+        header: 'p-0 border-b-0',
+      }"
+    >
+      <template #header>
+        <div class="relative aspect-4/3 w-full overflow-hidden bg-neutral-100">
+          <img
+            v-if="cover"
+            :src="cover"
+            :alt="`${vehicle.make} ${vehicle.model}`"
+            class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            loading="lazy"
+          >
+          <div v-else class="flex h-full w-full items-center justify-center bg-linear-to-br from-neutral-100 to-neutral-200 text-neutral-400">
+            <UIcon name="i-lucide-car" class="size-16" />
+          </div>
+          <UBadge
+            color="primary"
+            variant="solid"
+            :label="String(vehicle.year)"
+            class="absolute left-3 top-3 shadow-md"
+          />
+        </div>
+      </template>
 
-    <div class="space-y-3 p-4">
-      <div>
-        <h3 class="line-clamp-1 text-base font-semibold text-black">
-          {{ vehicle.make }} {{ vehicle.model }}
-        </h3>
-        <p class="text-lg font-bold text-[#8B1A1A]">
-          {{ formattedPrice }}
-        </p>
-      </div>
+      <div class="space-y-3">
+        <div>
+          <h3 class="line-clamp-1 text-base font-semibold text-neutral-900">
+            {{ vehicle.make }} {{ vehicle.model }}
+          </h3>
+          <p class="mt-1 text-xl font-extrabold text-primary-600">
+            {{ formattedPrice }}
+          </p>
+        </div>
 
-      <div class="flex flex-wrap gap-2 text-xs text-neutral-600">
-        <span class="inline-flex items-center gap-1">
-          <UIcon name="i-lucide-gauge" class="size-3.5" />
-          {{ formattedMileage }} km
-        </span>
-        <span class="inline-flex items-center gap-1">
-          <UIcon name="i-lucide-settings-2" class="size-3.5" />
-          {{ TRANSMISSION_LABELS[vehicle.transmission] }}
-        </span>
-        <span class="inline-flex items-center gap-1">
-          <UIcon name="i-lucide-fuel" class="size-3.5" />
-          {{ FUEL_LABELS[vehicle.fuelType] }}
-        </span>
+        <div class="flex flex-wrap gap-1.5">
+          <UBadge
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            :label="`${formattedMileage} km`"
+            icon="i-lucide-gauge"
+          />
+          <UBadge
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            :label="TRANSMISSION_LABELS[vehicle.transmission]"
+            icon="i-lucide-settings-2"
+          />
+          <UBadge
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            :label="FUEL_LABELS[vehicle.fuelType]"
+            icon="i-lucide-fuel"
+          />
+        </div>
       </div>
-    </div>
-  </NuxtLink>
+    </UCard>
+  </ULink>
 </template>

@@ -2,49 +2,48 @@
 // TODO: load shopName + logoUrl from ShopConfig via API once endpoint exists.
 const shopName = 'Pherro'
 
-const nav = [
-  { label: 'Início', to: '/' },
-  { label: 'Veículos', to: '/veiculos' },
-  { label: 'Contato', to: '/contato' },
-]
+const items = ref([
+  { label: 'Início', to: '/', icon: 'i-lucide-home' },
+  { label: 'Veículos', to: '/veiculos', icon: 'i-lucide-car-front' },
+  { label: 'Contato', to: '/contato', icon: 'i-lucide-mail' },
+])
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 border-b border-neutral-200 bg-black/95 backdrop-blur">
-    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-      <NuxtLink to="/" class="flex items-center gap-2 text-white">
-        <UIcon name="i-lucide-car-front" class="size-6 text-[#8B1A1A]" />
-        <span class="text-lg font-bold tracking-tight">{{ shopName }}</span>
+  <header class="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 backdrop-blur">
+    <UContainer class="flex items-center justify-between gap-4 py-3">
+      <NuxtLink
+        to="/"
+        class="flex items-center gap-2 text-neutral-900"
+      >
+        <UIcon name="i-lucide-car-front" class="size-7 text-primary-600" />
+        <span class="text-xl font-extrabold tracking-tight">{{ shopName }}</span>
       </NuxtLink>
 
-      <nav class="hidden items-center gap-6 md:flex">
-        <NuxtLink
-          v-for="item in nav"
-          :key="item.to"
-          :to="item.to"
-          class="text-sm font-medium text-neutral-300 transition hover:text-white"
-        >
-          {{ item.label }}
-        </NuxtLink>
-      </nav>
-
-      <UButton
-        to="/contato"
-        color="primary"
-        icon="i-lucide-phone"
-        class="hidden sm:inline-flex"
-      >
-        Fale conosco
-      </UButton>
-
-      <UButton
-        to="/contato"
-        color="primary"
-        icon="i-lucide-phone"
-        variant="ghost"
-        class="sm:hidden"
-        aria-label="Fale conosco"
+      <UNavigationMenu
+        :items="items"
+        variant="link"
+        color="neutral"
+        class="hidden md:flex"
       />
-    </div>
+
+      <div class="flex items-center gap-2">
+        <UButton
+          to="/contato"
+          color="primary"
+          icon="i-lucide-phone"
+          label="Fale conosco"
+          class="hidden sm:inline-flex"
+        />
+        <UButton
+          to="/contato"
+          color="primary"
+          icon="i-lucide-phone"
+          variant="ghost"
+          aria-label="Fale conosco"
+          class="sm:hidden"
+        />
+      </div>
+    </UContainer>
   </header>
 </template>
