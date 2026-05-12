@@ -1,0 +1,47 @@
+{
+  "name": "pherro",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Pherro — used-car dealership management. Multi-tenant Nuxt 4 + self-hosted Supabase.",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0 --port 3000",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "start": "bun run .output/server/index.mjs",
+    "postinstall": "nuxt prepare && prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nuxt/ui": "^4.7.1",
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "nuxt": "^4.4.5",
+    "tailwindcss": "^4.3.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^0.5.7",
+    "@types/bun": "latest",
+    "eslint": "^9.12.0",
+    "prisma": "^5.22.0",
+    "typescript": "^5.6.0"
+  },
+  "prisma": {
+    "seed": "bun run prisma/seed.ts"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "trustedDependencies": [
+    "@prisma/client",
+    "prisma"
+  ]
+}

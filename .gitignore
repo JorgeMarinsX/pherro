@@ -1,0 +1,19 @@
+node_modules
+.output
+.nuxt
+.data
+.cache
+dist
+coverage
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# editor
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log
