@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "description": "Pherro — used-car dealership management. Multi-tenant Nuxt 4 + self-hosted Supabase.",
   "scripts": {
-    "dev": "prisma migrate deploy && nuxt dev --host 0.0.0.0 --port 3000",
+    "dev": "prisma migrate deploy && nuxt dev --host 0.0.0.0 --port 3000 --no-fork",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "start": "prisma migrate deploy && bun run .output/server/index.mjs",
