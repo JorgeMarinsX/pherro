@@ -1,5 +1,5 @@
-// Pherro — Prisma schema. Managed migrations only.
-// Per-tenant DB: each shop has isolated Postgres (see docker-compose.yml).
+// Pherro — Prisma schema. Managed migrations only (never db push).
+// Per-tenant DB: each shop instance has its own isolated Postgres.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,45 +10,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------------- Tenant config ----------------
-model TenantConfig {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ---------------- Shop config ----------------
+
+model ShopConfig {
+  id               String            @id @default(cuid())
+  shopName         String
+  logoUrl          String?
+  description      String?           @db.Text
+  address          String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  whatsappNumbers  WhatsappNumber[]
+}
+
+model WhatsappNumber {
+  id           String      @id @default(cuid())
+  label        String
+  number       String
+  shopConfigId String
+  shopConfig   ShopConfig  @relation(fields: [shopConfigId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  vehicles     Vehicle[]
 }
 
 // ---------------- Vehicles ----------------
+
 model Vehicle {
-  id            String       @id @default(cuid())
-  make          String
-  model         String
-  year          Int
-  price         Decimal      @db.Decimal(12, 2)
-  mileage       Int
-  transmission  Transmission
-  hasAirCon     Boolean      @default(false)
-  description   String?      @db.Text
-  active        Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  leads         Lead[]
+  id                String             @id @default(cuid())
+  make              String
+  model             String
+  year              Int
+  price             Decimal            @db.Decimal(12, 2)
+  mileage           Int
+  color             String
+  description       String?            @db.Text
+  transmission      Transmission
+  fuelType          FuelType
+  status            VehicleStatus      @default(ACTIVE)
+  whatsappNumberId  String?
+  whatsappNumber    WhatsappNumber?    @relation(fields: [whatsappNumberId], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  photos            VehiclePhoto[]
+  attributes        VehicleAttribute[]
+  leadInterests     LeadVehicleInterest[]
 }
+
+model VehiclePhoto {
+  id        String  @id @default(cuid())
+  url       String
+  position  Int
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Attributes ----------------
+
+model AttributeDefinition {
+  id         String             @id @default(cuid())
+  name       String
+  slug       String             @unique
+  type       AttributeType
+  options    Json?
+  createdAt  DateTime           @default(now())
+  vehicles   VehicleAttribute[]
+}
+
+model VehicleAttribute {
+  vehicleId             String
+  attributeDefinitionId String
+  value                 String
+  vehicle               Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  attributeDefinition   AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@id([vehicleId, attributeDefinitionId])
+}
+
+// ---------------- Leads / CRM ----------------
+
+model Lead {
+  id              String                @id @default(cuid())
+  name            String
+  phone           String
+  email           String?
+  notes           String?               @db.Text
+  source          LeadSource
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  vehicleInterests LeadVehicleInterest[]
+}
+
+model LeadVehicleInterest {
+  id        String   @id @default(cuid())
+  leadId    String
+  vehicleId String
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, vehicleId])
+}
+
+// ---------------- Enums ----------------
 
 enum Transmission {
-  manual
-  automatic
+  MANUAL
+  AUTOMATIC
+  CVT
 }
 
-// ---------------- Leads ----------------
-model Lead {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String
-  email     String?
-  source    String?
-  vehicleId String?
-  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+enum FuelType {
+  FLEX
+  GASOLINE
+  ETHANOL
+  DIESEL
+  ELECTRIC
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AttributeType {
+  BOOLEAN
+  ENUM
+  TEXT
+}
+
+enum LeadSource {
+  MANUAL
+  FORM
 }
