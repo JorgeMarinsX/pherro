@@ -1,2 +1,20 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+@theme {
+  --color-primary-50: #fdf2f2;
+  --color-primary-100: #fce4e4;
+  --color-primary-200: #f9c9c9;
+  --color-primary-300: #f0a3a3;
+  --color-primary-400: #d96b6b;
+  --color-primary-500: #b73232;
+  --color-primary-600: #8B1A1A;
+  --color-primary-700: #731515;
+  --color-primary-800: #5c1010;
+  --color-primary-900: #460c0c;
+  --color-primary-950: #2b0707;
+}
+
+:root {
+  --ui-primary: var(--color-primary-600);
+}
