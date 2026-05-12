@@ -20,4 +20,18 @@ export default defineNuxtConfig({
       title: 'Pherro',
     },
   },
+  vite: {
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 300,
+      },
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: 24678,
+        clientPort: 24678,
+      },
+    },
+  },
 })
