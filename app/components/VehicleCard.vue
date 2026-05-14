@@ -28,33 +28,32 @@ const cover = computed(() =>
   >
     <UCard
       :ui="{
-        root: 'overflow-hidden border-neutral-200 transition hover:-translate-y-0.5 hover:border-primary-600 hover:shadow-xl',
-        body: 'p-4',
-        header: 'p-0 border-b-0',
+        root: 'relative isolate aspect-4/5 overflow-hidden border-0 ring-0 bg-neutral-100 bg-cover bg-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg',
+        body: 'flex h-full flex-col p-4',
       }"
+      :style="cover ? { backgroundImage: `url('${cover}')` } : undefined"
     >
-      <template #header>
-        <div class="relative aspect-4/3 w-full overflow-hidden bg-neutral-100">
-          <img
-            v-if="cover"
-            :src="cover"
-            :alt="`${vehicle.make} ${vehicle.model}`"
-            class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            loading="lazy"
-          >
-          <div v-else class="flex h-full w-full items-center justify-center bg-linear-to-br from-neutral-100 to-neutral-200 text-neutral-400">
-            <UIcon name="i-lucide-car" class="size-16" />
-          </div>
-          <UBadge
-            color="primary"
-            variant="solid"
-            :label="String(vehicle.year)"
-            class="absolute left-3 top-3 shadow-md"
-          />
-        </div>
-      </template>
+      <div
+        v-if="!cover"
+        class="absolute inset-0 -z-10 flex items-center justify-center bg-linear-to-br from-neutral-100 to-neutral-200 text-neutral-400"
+      >
+        <UIcon name="i-lucide-car" class="size-20" />
+      </div>
 
-      <div class="space-y-3">
+      <div
+        class="pointer-events-none absolute inset-0 -z-10 bg-linear-to-t from-white/90 via-white/60 to-white/0"
+        aria-hidden="true"
+      />
+
+      <div class="flex items-start justify-between">
+        <UBadge
+          variant="solid"
+          :label="String(vehicle.year)"
+          :ui="{ base: 'bg-neutral-900 text-white ring-0' }"
+        />
+      </div>
+
+      <div class="mt-auto space-y-3">
         <div>
           <h3 class="line-clamp-1 text-base font-semibold text-neutral-900">
             {{ vehicle.make }} {{ vehicle.model }}
