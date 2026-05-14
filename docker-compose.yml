@@ -97,9 +97,10 @@ services:
     image: kong/kong:3.9.1
     restart: unless-stopped
     mem_limit: 256m
+    cpus: 0.5
     healthcheck:
       test: ["CMD", "kong", "health"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
       retries: 5
     depends_on:
@@ -115,7 +116,7 @@ services:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_DNS_NOT_FOUND_TTL: 1
+      KONG_DNS_NOT_FOUND_TTL: 30
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth,request-termination,ip-restriction,post-function
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
