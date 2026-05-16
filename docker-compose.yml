@@ -96,7 +96,7 @@ services:
     container_name: supabase-kong
     image: kong/kong:3.9.1
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 512m
     cpus: 0.5
     healthcheck:
       test: ["CMD", "kong", "health"]

@@ -23,25 +23,22 @@ const items = ref([
       <UNavigationMenu
         :items="items"
         variant="link"
-        color="neutral"
+        color="primary"
         class="hidden md:flex"
+        :ui="{
+          link: 'px-3 py-2 rounded-md font-medium text-neutral-700 hover:text-primary-700 hover:bg-primary-50 data-[active=true]:text-primary-700 data-[active=true]:bg-primary-50 transition-colors duration-150',
+          linkLeadingIcon: 'text-neutral-500 group-hover:text-primary-600 group-data-[active=true]:text-primary-600',
+        }"
       />
 
       <div class="flex items-center gap-2">
         <UButton
           to="/contato"
           color="primary"
+          variant="solid"
           icon="i-lucide-phone"
           label="Fale conosco"
-          class="hidden sm:inline-flex"
-        />
-        <UButton
-          to="/contato"
-          color="primary"
-          icon="i-lucide-phone"
-          variant="ghost"
-          aria-label="Fale conosco"
-          class="sm:hidden"
+          class="hidden sm:inline-flex font-semibold text-white bg-primary-700 hover:bg-primary-400"
         />
       </div>
     </UContainer>
