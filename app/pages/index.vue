@@ -79,9 +79,7 @@ function onSearch() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white">
-    <SiteHeader />
-
+  <div>
     <section
       class="relative isolate overflow-hidden bg-primary-900"
       :style="{
