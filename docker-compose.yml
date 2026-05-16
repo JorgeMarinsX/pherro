@@ -29,6 +29,9 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
       NUXT_DEVTOOLS_ENABLED: "true"
+      #NUXT_DEBUG: "true"
+      #DEBUG: "nuxt:*,nitro:*,vite:*"
+      CONSOLA_LEVEL: "5"
       HOST: 0.0.0.0
       PORT: 3000
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}?schema=public
