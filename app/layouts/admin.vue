@@ -61,11 +61,6 @@ const userMenu = ref([
           orientation="vertical"
           variant="pill"
           color="primary"
-          :ui="{
-            link: 'aria-[current=page]:before:!bg-primary-600 aria-[current=page]:!text-white data-[state=open]:before:!bg-primary-600 data-[state=open]:!text-white',
-            linkLeadingIcon: 'group-aria-[current=page]:!text-white',
-            linkLabel: 'group-aria-[current=page]:!text-white',
-          }"
         />
       </template>
 
