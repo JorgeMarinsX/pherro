@@ -54,6 +54,11 @@ model Vehicle {
   photos            VehiclePhoto[]
   attributes        VehicleAttribute[]
   leadInterests     LeadVehicleInterest[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([status, price])
+  @@index([status, year])
+  @@index([make, model])
 }
 
 model VehiclePhoto {
@@ -62,6 +67,8 @@ model VehiclePhoto {
   position  Int
   vehicleId String
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, position])
 }
 
 // ---------------- Attributes ----------------
@@ -98,6 +105,9 @@ model Lead {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   vehicleInterests LeadVehicleInterest[]
+
+  @@index([phone])
+  @@index([createdAt(sort: Desc)])
 }
 
 model LeadVehicleInterest {
