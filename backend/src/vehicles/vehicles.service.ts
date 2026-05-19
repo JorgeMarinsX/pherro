@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma, VehicleStatus } from '@prisma/client'
+import { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
@@ -11,9 +13,15 @@ import {
 import { UpdateVehicleDto } from './dto/update-vehicle.dto'
 import { VehicleDetailDto, VehicleListItemDto } from './dto/vehicle.dto'
 
+const cacheKey = (id: string) => `vehicle:${id}`
+const VEHICLE_TTL_MS = 60_000
+
 @Injectable()
 export class VehiclesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async list(q: ListVehiclesDto) {
     const where: Prisma.VehicleWhereInput = {}
@@ -69,15 +77,26 @@ export class VehiclesService {
       this.prisma.vehicle.count({ where }),
     ])
 
-    return {
-      items: plainToInstance(VehicleListItemDto, items, { excludeExtraneousValues: true }),
-      total,
-      take,
-      skip,
-    }
+    const dtoItems = plainToInstance(VehicleListItemDto, items, { excludeExtraneousValues: true })
+
+    // Warm per-id cache so list → detail click is a hit.
+    // Note: list items omit description/whatsappNumber/attributes; cache the slim list shape
+    // and let findOne overwrite with the full detail shape on first detail fetch.
+    await Promise.all(
+      dtoItems.map((item) => this.cache.set(cacheKey(item.id), item, VEHICLE_TTL_MS)),
+    )
+
+    return { items: dtoItems, total, take, skip }
   }
 
   async findOne(id: string): Promise<VehicleDetailDto> {
+    const key = cacheKey(id)
+    const cached = await this.cache.get<VehicleDetailDto>(key)
+    // Only return cache hit if it's the full detail shape (has `attributes` array set).
+    if (cached && Array.isArray((cached as VehicleDetailDto).attributes)) {
+      return cached
+    }
+
     const v = await this.prisma.vehicle.findUnique({
       where: { id },
       include: {
@@ -87,7 +106,10 @@ export class VehiclesService {
       },
     })
     if (!v) throw new NotFoundException(`Vehicle ${id} not found.`)
-    return plainToInstance(VehicleDetailDto, v, { excludeExtraneousValues: true })
+
+    const dto = plainToInstance(VehicleDetailDto, v, { excludeExtraneousValues: true })
+    await this.cache.set(key, dto, VEHICLE_TTL_MS)
+    return dto
   }
 
   async create(dto: CreateVehicleDto): Promise<VehicleDetailDto> {
@@ -121,7 +143,9 @@ export class VehiclesService {
         attributes: { select: { attributeDefinitionId: true, value: true } },
       },
     })
-    return plainToInstance(VehicleDetailDto, created, { excludeExtraneousValues: true })
+    const result = plainToInstance(VehicleDetailDto, created, { excludeExtraneousValues: true })
+    await this.cache.set(cacheKey(result.id), result, VEHICLE_TTL_MS)
+    return result
   }
 
   async update(id: string, dto: UpdateVehicleDto): Promise<VehicleDetailDto> {
@@ -130,7 +154,7 @@ export class VehiclesService {
 
     const { photos, attributes, ...scalar } = dto
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.vehicle.update({ where: { id }, data: scalar })
 
       if (photos) {
@@ -156,6 +180,7 @@ export class VehiclesService {
       }
     })
 
+    await this.cache.del(cacheKey(id))
     return this.findOne(id)
   }
 
@@ -163,6 +188,7 @@ export class VehiclesService {
     const exists = await this.prisma.vehicle.findUnique({ where: { id }, select: { id: true } })
     if (!exists) throw new NotFoundException(`Vehicle ${id} not found.`)
     await this.prisma.vehicle.delete({ where: { id } })
+    await this.cache.del(cacheKey(id))
     return { ok: true }
   }
 }
