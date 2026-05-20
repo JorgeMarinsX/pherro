@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common'
+import { AdminOnly } from '../auth/decorators/admin-only.decorator'
 import { ShopConfigService } from './shop-config.service'
 import { UpdateShopConfigDto } from './dto/update-shop-config.dto'
 
@@ -12,6 +13,7 @@ export class ShopConfigController {
   }
 
   @Patch()
+  @AdminOnly()
   update(@Body() dto: UpdateShopConfigDto) {
     return this.service.update(dto)
   }

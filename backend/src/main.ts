@@ -10,7 +10,17 @@ async function bootstrap() {
     new FastifyAdapter({ logger: false, trustProxy: true }),
   )
 
-  app.enableCors()
+  const origins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  app.enableCors({
+    origin: origins.length > 0 ? origins : false,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'X-Admin-Token'],
+  })
 
   app.useGlobalPipes(
     new ValidationPipe({

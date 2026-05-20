@@ -5,6 +5,9 @@ definePageMeta({
 
 useHead({ title: 'Entrar — Pherro Admin' })
 
+const route = useRoute()
+const toast = useToast()
+
 const state = reactive({
   email: '',
   password: '',
@@ -14,8 +17,23 @@ const loading = ref(false)
 
 async function onSubmit() {
   loading.value = true
-  // TODO: call Supabase Auth signInWithPassword, then navigateTo('/admin').
-  loading.value = false
+  try {
+    await $fetch('/api/auth/login', {
+      method: 'POST',
+      body: { email: state.email, password: state.password },
+    })
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/admin'
+    await navigateTo(redirect)
+  } catch (err: unknown) {
+    const message =
+      (err as { data?: { statusMessage?: string }; statusMessage?: string })?.data
+        ?.statusMessage ??
+      (err as { statusMessage?: string })?.statusMessage ??
+      'Falha ao entrar'
+    toast.add({ title: 'Erro', description: message, color: 'error' })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

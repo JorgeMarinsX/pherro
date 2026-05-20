@@ -2,10 +2,18 @@
 // TODO: load shopName + logoUrl from ShopConfig via API once endpoint exists.
 const shopName = 'Pherro'
 
-// TODO: load current user from Supabase Auth session.
-const currentUser = {
+const { data: me } = await useFetch<{ authenticated: boolean; email?: string }>('/api/auth/me', {
+  key: 'auth:me',
+})
+
+const currentUser = computed(() => ({
   name: 'Administrador',
-  email: 'admin@pherro.local',
+  email: me.value?.email ?? 'admin@pherro.local',
+}))
+
+async function logout() {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  await navigateTo('/admin/login')
 }
 
 const links = ref([
@@ -22,15 +30,15 @@ const links = ref([
   ],
 ])
 
-const userMenu = ref([
+const userMenu = computed(() => [
   [
-    { label: currentUser.email, type: 'label' as const },
+    { label: currentUser.value.email, type: 'label' as const },
   ],
   [
     { label: 'Configurações', icon: 'i-lucide-settings', to: '/admin/configuracoes' },
   ],
   [
-    { label: 'Sair', icon: 'i-lucide-log-out', to: '/admin/logout' },
+    { label: 'Sair', icon: 'i-lucide-log-out', onSelect: logout },
   ],
 ])
 </script>
