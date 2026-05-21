@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module'
 import { LeadsModule } from './leads/leads.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { ShopConfigModule } from './shop-config/shop-config.module'
+import { UsersModule } from './users/users.module'
 import { VehiclesModule } from './vehicles/vehicles.module'
 
 @Module({
@@ -18,8 +19,9 @@ import { VehiclesModule } from './vehicles/vehicles.module'
     ThrottlerModule.forRoot([
       { name: 'default', ttl: 60_000, limit: 60 },
     ]),
-    AuthModule,
     PrismaModule,
+    UsersModule,
+    AuthModule,
     ShopConfigModule,
     VehiclesModule,
     LeadsModule,

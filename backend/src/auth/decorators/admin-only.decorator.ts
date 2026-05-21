@@ -1,4 +1,6 @@
 import { applyDecorators, UseGuards } from '@nestjs/common'
-import { AdminTokenGuard } from '../guards/admin-token.guard'
+import { AdminOrTokenGuard } from '../guards/admin-or-token.guard'
+import { Roles } from './roles.decorator'
 
-export const AdminOnly = () => applyDecorators(UseGuards(AdminTokenGuard))
+export const AdminOnly = () =>
+  applyDecorators(UseGuards(AdminOrTokenGuard), Roles('ADMIN', 'SUPERUSER'))

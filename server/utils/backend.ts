@@ -1,20 +1,24 @@
 import type { H3Event } from 'h3'
+import { clearSession, readSession, writeSession } from './session'
 
 type BackendFetchOptions = Parameters<typeof $fetch>[1] & {
   admin?: boolean
+  bearer?: string
+  event?: H3Event
 }
 
 /**
  * Server-only helper to call the NestJS backend.
- * Set `admin: true` to inject the X-Admin-Token header (SSR-only secret).
- * Never call this from `app/` — only from `server/`.
+ * - `admin: true` injects `X-Admin-Token` (S2S secret).
+ * - `bearer: token` injects `Authorization: Bearer <token>`.
+ * Never call from `app/` — only from `server/`.
  */
 export async function backendFetch<T = unknown>(
   event: H3Event | null,
   path: string,
   opts: BackendFetchOptions = {},
 ): Promise<T> {
-  const { admin, headers, ...rest } = opts
+  const { admin, bearer, headers, ...rest } = opts
   const config = useRuntimeConfig(event ?? undefined)
 
   const baseUrl = config.backendUrl
@@ -37,9 +41,64 @@ export async function backendFetch<T = unknown>(
     mergedHeaders['X-Admin-Token'] = token
   }
 
+  if (bearer) {
+    mergedHeaders['Authorization'] = `Bearer ${bearer}`
+  }
+
   return await $fetch<T>(path, {
     baseURL: baseUrl,
     headers: mergedHeaders,
     ...rest,
   })
+}
+
+type RefreshResponse = {
+  accessToken: string
+  refreshToken: string
+  email: string
+  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
+}
+
+/**
+ * Calls backend with session-bearer auth. On 401, attempts one transparent refresh
+ * via the backend's `/auth/refresh`, updates the cookie, and retries the original call.
+ * On any failure, clears the session and rethrows.
+ */
+export async function backendFetchAsUser<T = unknown>(
+  event: H3Event,
+  path: string,
+  opts: Omit<BackendFetchOptions, 'bearer' | 'admin'> = {},
+): Promise<T> {
+  const session = await readSession(event)
+  if (!session) {
+    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  }
+
+  try {
+    return await backendFetch<T>(event, path, { ...opts, bearer: session.accessToken })
+  } catch (err: unknown) {
+    const status = (err as { statusCode?: number; response?: { status?: number } }).statusCode
+      ?? (err as { response?: { status?: number } }).response?.status
+    if (status !== 401) throw err
+
+    let refreshed: RefreshResponse
+    try {
+      refreshed = await backendFetch<RefreshResponse>(event, '/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken: session.refreshToken },
+      })
+    } catch {
+      clearSession(event)
+      throw createError({ statusCode: 401, statusMessage: 'Sessão expirada' })
+    }
+
+    await writeSession(event, {
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken,
+      email: refreshed.email,
+      role: refreshed.role,
+    })
+
+    return await backendFetch<T>(event, path, { ...opts, bearer: refreshed.accessToken })
+  }
 }

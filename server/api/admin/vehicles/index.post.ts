@@ -1,6 +1,6 @@
-import { backendFetch } from '~~/server/utils/backend'
+import { backendFetchAsUser } from '~~/server/utils/backend'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  return await backendFetch(event, '/vehicles', { admin: true, method: 'POST', body })
+  return await backendFetchAsUser(event, '/vehicles', { method: 'POST', body })
 })

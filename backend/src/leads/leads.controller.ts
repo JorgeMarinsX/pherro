@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
 import { AdminOnly } from '../auth/decorators/admin-only.decorator'
+import { Public } from '../auth/decorators/public.decorator'
 import { CreateLeadDto } from './dto/create-lead.dto'
 import { ListLeadsDto } from './dto/list-leads.dto'
 import { LeadsService } from './leads.service'
@@ -9,6 +10,7 @@ import { LeadsService } from './leads.service'
 export class LeadsController {
   constructor(private readonly service: LeadsService) {}
 
+  @Public()
   @Post()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   create(@Body() dto: CreateLeadDto) {

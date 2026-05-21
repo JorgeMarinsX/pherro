@@ -9,8 +9,6 @@ export default defineNuxtConfig({
     backendUrl: process.env.BACKEND_URL,
     tenantSlug: process.env.TENANT_SLUG,
     adminToken: process.env.BACKEND_ADMIN_TOKEN,
-    adminEmail: process.env.ADMIN_EMAIL,
-    adminPassword: process.env.ADMIN_PASSWORD,
     sessionSecret: process.env.SESSION_SECRET,
     public: {
       backendUrl: process.env.NUXT_PUBLIC_BACKEND_URL,

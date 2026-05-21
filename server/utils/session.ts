@@ -2,11 +2,12 @@ import type { H3Event } from 'h3'
 
 const COOKIE_NAME = 'admin_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7
-const ISSUED_TOLERANCE_MS = 1000
 
 export type AdminSession = {
+  accessToken: string
+  refreshToken: string
   email: string
-  iat: number
+  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
 }
 
 function b64urlEncode(bytes: Uint8Array): string {
@@ -55,9 +56,8 @@ function getSecret(event: H3Event): string {
   return secret
 }
 
-export async function createSession(event: H3Event, email: string): Promise<void> {
+export async function writeSession(event: H3Event, session: AdminSession): Promise<void> {
   const secret = getSecret(event)
-  const session: AdminSession = { email, iat: Date.now() }
   const payload = b64urlEncode(new TextEncoder().encode(JSON.stringify(session)))
   const signature = await sign(payload, secret)
   const value = `${payload}.${signature}`
@@ -96,9 +96,14 @@ export async function readSession(event: H3Event): Promise<AdminSession | null> 
   try {
     const json = new TextDecoder().decode(b64urlDecode(payload))
     const session = JSON.parse(json) as AdminSession
-    if (typeof session.email !== 'string' || typeof session.iat !== 'number') return null
-    const ageMs = Date.now() - session.iat + ISSUED_TOLERANCE_MS
-    if (ageMs < 0 || ageMs > MAX_AGE_SECONDS * 1000) return null
+    if (
+      typeof session.accessToken !== 'string' ||
+      typeof session.refreshToken !== 'string' ||
+      typeof session.email !== 'string' ||
+      typeof session.role !== 'string'
+    ) {
+      return null
+    }
     return session
   } catch {
     return null

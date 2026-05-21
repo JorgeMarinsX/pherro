@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common'
 import { AdminOnly } from '../auth/decorators/admin-only.decorator'
+import { Public } from '../auth/decorators/public.decorator'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
 import { ListVehiclesDto } from './dto/list-vehicles.dto'
 import { UpdateVehicleDto } from './dto/update-vehicle.dto'
@@ -18,11 +19,13 @@ import { VehiclesService } from './vehicles.service'
 export class VehiclesController {
   constructor(private readonly service: VehiclesService) {}
 
+  @Public()
   @Get()
   list(@Query() q: ListVehiclesDto) {
     return this.service.list(q)
   }
 
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id)

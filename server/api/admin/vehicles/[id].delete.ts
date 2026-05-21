@@ -1,9 +1,6 @@
-import { backendFetch } from '~~/server/utils/backend'
+import { backendFetchAsUser } from '~~/server/utils/backend'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  return await backendFetch(event, `/vehicles/${id}`, {
-    admin: true,
-    method: 'DELETE',
-  })
+  return await backendFetchAsUser(event, `/vehicles/${id}`, { method: 'DELETE' })
 })

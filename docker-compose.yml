@@ -30,6 +30,7 @@ services:
       BACKEND_URL: http://backend:3001
       TENANT_SLUG: ${TENANT_SLUG:-dev}
       BACKEND_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
+      SESSION_SECRET: ${SESSION_SECRET}
     volumes:
       - .:/app
       - app-node-modules:/app/node_modules
@@ -56,6 +57,11 @@ services:
       TENANT_SLUG: ${TENANT_SLUG:-dev}
       BACKEND_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
     volumes:
       - ./backend:/app
       - backend-node-modules:/app/node_modules

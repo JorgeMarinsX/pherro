@@ -19,7 +19,7 @@ async function bootstrap() {
     origin: origins.length > 0 ? origins : false,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-Admin-Token'],
+    allowedHeaders: ['Content-Type', 'X-Admin-Token', 'Authorization'],
   })
 
   app.useGlobalPipes(
