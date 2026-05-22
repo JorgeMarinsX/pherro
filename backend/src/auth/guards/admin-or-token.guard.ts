@@ -7,7 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import { timingSafeEqual } from 'node:crypto'
-import { ROLES_KEY, type AuthRole } from '../decorators/roles.decorator'
+import { ROLES_KEY } from '../decorators/roles.decorator'
+import { ADMIN_ROLES, SUPERUSER, type AuthRole } from '../roles'
 import type { AuthUser } from '../types'
 
 @Injectable()
@@ -27,7 +28,7 @@ export class AdminOrTokenGuard implements CanActivate {
         this.reflector.getAllAndOverride<AuthRole[]>(ROLES_KEY, [
           ctx.getHandler(),
           ctx.getClass(),
-        ]) ?? ['ADMIN', 'SUPERUSER']
+        ]) ?? [...ADMIN_ROLES]
       if (required.includes(req.user.role)) return true
     }
 
@@ -42,7 +43,7 @@ export class AdminOrTokenGuard implements CanActivate {
       req.user = {
         sub: 'service-token',
         email: 'service@internal',
-        role: 'SUPERUSER',
+        role: SUPERUSER,
         isEnvAdmin: false,
       }
       return true

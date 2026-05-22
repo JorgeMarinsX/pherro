@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import * as argon2 from 'argon2'
 import { UsersService } from '../users/users.service'
+import { SUPERUSER } from './roles'
 import type { AuthUser, JwtPayload } from './types'
 
 // Dummy hash used for timing-safety on unknown emails.
@@ -51,7 +52,7 @@ export class AuthService implements OnModuleInit {
       return {
         sub: 'env-admin',
         email: normalized,
-        role: 'SUPERUSER',
+        role: SUPERUSER,
         isEnvAdmin: true,
       }
     }
@@ -102,7 +103,7 @@ export class AuthService implements OnModuleInit {
       return this.issueTokens({
         sub: 'env-admin',
         email: this.envAdmin.email,
-        role: 'SUPERUSER',
+        role: SUPERUSER,
         isEnvAdmin: true,
       })
     }

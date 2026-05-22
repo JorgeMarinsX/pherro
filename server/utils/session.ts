@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { isAuthRole, type AuthRole } from '~~/shared/roles'
 
 const COOKIE_NAME = 'admin_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7
@@ -7,7 +8,7 @@ export type AdminSession = {
   accessToken: string
   refreshToken: string
   email: string
-  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
+  role: AuthRole
 }
 
 function b64urlEncode(bytes: Uint8Array): string {
@@ -100,7 +101,7 @@ export async function readSession(event: H3Event): Promise<AdminSession | null> 
       typeof session.accessToken !== 'string' ||
       typeof session.refreshToken !== 'string' ||
       typeof session.email !== 'string' ||
-      typeof session.role !== 'string'
+      !isAuthRole(session.role)
     ) {
       return null
     }

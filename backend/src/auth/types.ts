@@ -1,4 +1,4 @@
-import type { AuthRole } from './decorators/roles.decorator'
+import type { AuthRole } from './roles'
 
 export type AuthUser = {
   sub: string

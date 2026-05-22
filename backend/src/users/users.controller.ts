@@ -9,12 +9,13 @@ import {
   Post,
 } from '@nestjs/common'
 import { Roles } from '../auth/decorators/roles.decorator'
+import { ADMIN_ROLES } from '../auth/roles'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UsersService } from './users.service'
 
 @Controller('users')
-@Roles('ADMIN', 'SUPERUSER')
+@Roles(...ADMIN_ROLES)
 export class UsersController {
   constructor(private readonly service: UsersService) {}
 

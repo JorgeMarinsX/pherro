@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { AuthRole } from '~~/shared/roles'
 import { clearSession, readSession, writeSession } from './session'
 
 type BackendFetchOptions = Parameters<typeof $fetch>[1] & {
@@ -56,7 +57,7 @@ type RefreshResponse = {
   accessToken: string
   refreshToken: string
   email: string
-  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
+  role: AuthRole
 }
 
 /**

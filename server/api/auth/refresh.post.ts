@@ -1,3 +1,4 @@
+import type { AuthRole } from '~~/shared/roles'
 import { backendFetch } from '~~/server/utils/backend'
 import { clearSession, readSession, writeSession } from '~~/server/utils/session'
 
@@ -5,7 +6,7 @@ type RefreshResponse = {
   accessToken: string
   refreshToken: string
   email: string
-  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
+  role: AuthRole
 }
 
 export default defineEventHandler(async (event) => {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { AuthRole } from '~~/shared/roles'
 import { backendFetch } from '~~/server/utils/backend'
 import { writeSession } from '~~/server/utils/session'
 
@@ -11,7 +12,7 @@ type LoginResponse = {
   accessToken: string
   refreshToken: string
   email: string
-  role: 'ADMIN' | 'STAFF' | 'SUPERUSER'
+  role: AuthRole
 }
 
 export default defineEventHandler(async (event) => {

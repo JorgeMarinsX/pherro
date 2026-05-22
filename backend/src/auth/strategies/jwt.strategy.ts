@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { PrismaService } from '../../prisma/prisma.service'
+import { SUPERUSER } from '../roles'
 import type { AuthUser, JwtPayload } from '../types'
 
 @Injectable()
@@ -28,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return {
         sub: 'env-admin',
         email: payload.email,
-        role: 'SUPERUSER',
+        role: SUPERUSER,
         isEnvAdmin: true,
       }
     }

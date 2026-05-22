@@ -7,6 +7,7 @@ import {
 import * as argon2 from 'argon2'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
+import { DEFAULT_NEW_USER_ROLE } from '../auth/roles'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { UserDto } from './dto/user.dto'
@@ -39,7 +40,7 @@ export class UsersService {
       data: {
         email,
         passwordHash,
-        role: dto.role ?? 'STAFF',
+        role: dto.role ?? DEFAULT_NEW_USER_ROLE,
         isActive: dto.isActive ?? true,
       },
     })
