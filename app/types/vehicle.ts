@@ -13,10 +13,11 @@ export interface VehiclePhoto {
 
 export interface Vehicle {
   id: string
+  slug: string
   make: string
   model: string
   year: number
-  price: number | string
+  price: number
   mileage: number
   color: string
   description?: string | null
@@ -24,6 +25,22 @@ export interface Vehicle {
   fuelType: FuelType
   status: VehicleStatus
   photos?: VehiclePhoto[]
+}
+
+export interface VehicleWhatsapp {
+  id: string
+  label: string
+  number: string
+}
+
+export interface VehicleAttributeValue {
+  attributeDefinitionId: string
+  value: string
+}
+
+export interface VehicleDetail extends Vehicle {
+  whatsappNumber: VehicleWhatsapp | null
+  attributes: VehicleAttributeValue[]
 }
 
 export const TRANSMISSION_LABELS: Record<Transmission, string> = {

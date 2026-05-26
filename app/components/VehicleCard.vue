@@ -9,7 +9,7 @@ const formattedPrice = computed(() =>
     style: 'currency',
     currency: 'BRL',
     maximumFractionDigits: 0,
-  }).format(Number(props.vehicle.price)),
+  }).format(props.vehicle.price),
 )
 
 const formattedMileage = computed(() =>
@@ -23,7 +23,7 @@ const cover = computed(() =>
 
 <template>
   <ULink
-    :to="`/veiculos/${vehicle.id}`"
+    :to="`/veiculos/${vehicle.slug}`"
     class="group block"
   >
     <UCard

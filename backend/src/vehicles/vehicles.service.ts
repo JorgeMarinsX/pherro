@@ -1,7 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma, VehicleStatus } from '@prisma/client'
-import { Cache } from 'cache-manager'
+import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
@@ -12,9 +12,12 @@ import {
 } from './dto/list-vehicles.dto'
 import { UpdateVehicleDto } from './dto/update-vehicle.dto'
 import { VehicleDetailDto, VehicleListItemDto } from './dto/vehicle.dto'
+import { buildVehicleSlug } from './slug.util'
 
 const cacheKey = (id: string) => `vehicle:${id}`
+const slugCacheKey = (slug: string) => `vehicle:slug:${slug}`
 const VEHICLE_TTL_MS = 60_000
+const SLUG_MAX_RETRIES = 5
 
 @Injectable()
 export class VehiclesService {
@@ -65,7 +68,7 @@ export class VehiclesService {
         take,
         skip,
         select: {
-          id: true, make: true, model: true, year: true, price: true,
+          id: true, slug: true, make: true, model: true, year: true, price: true,
           mileage: true, color: true, transmission: true, fuelType: true, status: true,
           photos: {
             orderBy: { position: 'asc' },
@@ -109,47 +112,95 @@ export class VehiclesService {
 
     const dto = plainToInstance(VehicleDetailDto, v, { excludeExtraneousValues: true })
     await this.cache.set(key, dto, VEHICLE_TTL_MS)
+    await this.cache.set(slugCacheKey(dto.slug), dto, VEHICLE_TTL_MS)
     return dto
   }
 
-  async create(dto: CreateVehicleDto): Promise<VehicleDetailDto> {
-    const created = await this.prisma.vehicle.create({
-      data: {
-        make: dto.make,
-        model: dto.model,
-        year: dto.year,
-        price: dto.price,
-        mileage: dto.mileage,
-        color: dto.color,
-        description: dto.description ?? null,
-        transmission: dto.transmission,
-        fuelType: dto.fuelType,
-        whatsappNumberId: dto.whatsappNumberId ?? null,
-        photos: dto.photos?.length
-          ? { create: dto.photos.map((p) => ({ url: p.url, position: p.position })) }
-          : undefined,
-        attributes: dto.attributes?.length
-          ? {
-              create: dto.attributes.map((a) => ({
-                attributeDefinitionId: a.attributeDefinitionId,
-                value: a.value,
-              })),
-            }
-          : undefined,
-      },
+  async findBySlug(slug: string): Promise<VehicleDetailDto> {
+    const key = slugCacheKey(slug)
+    const cached = await this.cache.get<VehicleDetailDto>(key)
+    if (cached && Array.isArray((cached as VehicleDetailDto).attributes)) {
+      return cached
+    }
+
+    const v = await this.prisma.vehicle.findUnique({
+      where: { slug },
       include: {
         photos: { orderBy: { position: 'asc' } },
         whatsappNumber: { select: { id: true, label: true, number: true } },
         attributes: { select: { attributeDefinitionId: true, value: true } },
       },
     })
-    const result = plainToInstance(VehicleDetailDto, created, { excludeExtraneousValues: true })
-    await this.cache.set(cacheKey(result.id), result, VEHICLE_TTL_MS)
-    return result
+    if (!v) throw new NotFoundException(`Vehicle slug "${slug}" not found.`)
+
+    const dto = plainToInstance(VehicleDetailDto, v, { excludeExtraneousValues: true })
+    await this.cache.set(key, dto, VEHICLE_TTL_MS)
+    await this.cache.set(cacheKey(dto.id), dto, VEHICLE_TTL_MS)
+    return dto
+  }
+
+  async create(dto: CreateVehicleDto): Promise<VehicleDetailDto> {
+    // Slug is immutable post-create. Retry on unique-constraint collision (P2002).
+    let lastErr: unknown
+    for (let attempt = 0; attempt < SLUG_MAX_RETRIES; attempt++) {
+      const slug = buildVehicleSlug(dto.make, dto.model, dto.year)
+      try {
+        const created = await this.prisma.vehicle.create({
+          data: {
+            slug,
+            make: dto.make,
+            model: dto.model,
+            year: dto.year,
+            price: dto.price,
+            mileage: dto.mileage,
+            color: dto.color,
+            description: dto.description ?? null,
+            transmission: dto.transmission,
+            fuelType: dto.fuelType,
+            whatsappNumberId: dto.whatsappNumberId ?? null,
+            photos: dto.photos?.length
+              ? { create: dto.photos.map((p) => ({ url: p.url, position: p.position })) }
+              : undefined,
+            attributes: dto.attributes?.length
+              ? {
+                  create: dto.attributes.map((a) => ({
+                    attributeDefinitionId: a.attributeDefinitionId,
+                    value: a.value,
+                  })),
+                }
+              : undefined,
+          },
+          include: {
+            photos: { orderBy: { position: 'asc' } },
+            whatsappNumber: { select: { id: true, label: true, number: true } },
+            attributes: { select: { attributeDefinitionId: true, value: true } },
+          },
+        })
+        const result = plainToInstance(VehicleDetailDto, created, { excludeExtraneousValues: true })
+        await this.cache.set(cacheKey(result.id), result, VEHICLE_TTL_MS)
+        await this.cache.set(slugCacheKey(result.slug), result, VEHICLE_TTL_MS)
+        return result
+      } catch (e) {
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002' &&
+          Array.isArray(e.meta?.target) &&
+          (e.meta?.target as string[]).includes('slug')
+        ) {
+          lastErr = e
+          continue
+        }
+        throw e
+      }
+    }
+    throw lastErr ?? new Error('Failed to generate unique vehicle slug.')
   }
 
   async update(id: string, dto: UpdateVehicleDto): Promise<VehicleDetailDto> {
-    const exists = await this.prisma.vehicle.findUnique({ where: { id }, select: { id: true } })
+    const exists = await this.prisma.vehicle.findUnique({
+      where: { id },
+      select: { id: true, slug: true },
+    })
     if (!exists) throw new NotFoundException(`Vehicle ${id} not found.`)
 
     const { photos, attributes, ...scalar } = dto
@@ -181,14 +232,19 @@ export class VehiclesService {
     })
 
     await this.cache.del(cacheKey(id))
+    await this.cache.del(slugCacheKey(exists.slug))
     return this.findOne(id)
   }
 
   async remove(id: string) {
-    const exists = await this.prisma.vehicle.findUnique({ where: { id }, select: { id: true } })
+    const exists = await this.prisma.vehicle.findUnique({
+      where: { id },
+      select: { id: true, slug: true },
+    })
     if (!exists) throw new NotFoundException(`Vehicle ${id} not found.`)
     await this.prisma.vehicle.delete({ where: { id } })
     await this.cache.del(cacheKey(id))
+    await this.cache.del(slugCacheKey(exists.slug))
     return { ok: true }
   }
 }

@@ -27,7 +27,7 @@ export class CreateVehicleDto {
   @IsString() @MaxLength(60) make!: string
   @IsString() @MaxLength(80) model!: string
   @IsInt() @Min(1900) @Max(2100) year!: number
-  @Type(() => Number) @Min(0) price!: number
+  @IsInt() @Min(0) price!: number
   @IsInt() @Min(0) mileage!: number
   @IsString() @MaxLength(40) color!: string
 

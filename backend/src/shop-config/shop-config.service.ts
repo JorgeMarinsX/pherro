@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { CACHE_MANAGER } from '@nestjs/cache-manager'
-import { Cache } from 'cache-manager'
+import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
 import { ShopConfigDto } from './dto/shop-config.dto'

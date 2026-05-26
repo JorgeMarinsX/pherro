@@ -6,65 +6,25 @@ useSeoMeta({
   description: 'Encontre o carro ideal. Estoque selecionado de veículos seminovos com procedência garantida.',
 })
 
-// TODO: replace mock data with `useFetch<Vehicle[]>('/api/vehicles', { query: { status: 'ACTIVE' } })`.
-const vehicles = ref<Vehicle[]>([
-  {
-    id: 'mock-1',
-    make: 'Volkswagen',
-    model: 'Nivus Highline',
-    year: 2023,
-    price: 119900,
-    mileage: 28450,
-    color: 'Branco',
-    transmission: 'AUTOMATIC',
-    fuelType: 'FLEX',
-    status: 'ACTIVE',
-    photos: [],
-  },
-  {
-    id: 'mock-2',
-    make: 'Toyota',
-    model: 'Corolla XEi',
-    year: 2022,
-    price: 134500,
-    mileage: 41200,
-    color: 'Prata',
-    transmission: 'CVT',
-    fuelType: 'FLEX',
-    status: 'ACTIVE',
-    photos: [],
-  },
-  {
-    id: 'mock-3',
-    make: 'Honda',
-    model: 'Civic Touring',
-    year: 2021,
-    price: 142900,
-    mileage: 53800,
-    color: 'Preto',
-    transmission: 'CVT',
-    fuelType: 'GASOLINE',
-    status: 'ACTIVE',
-    photos: [],
-  },
-  {
-    id: 'mock-4',
-    make: 'Jeep',
-    model: 'Compass Limited',
-    year: 2024,
-    price: 189900,
-    mileage: 12300,
-    color: 'Cinza',
-    transmission: 'AUTOMATIC',
-    fuelType: 'DIESEL',
-    status: 'ACTIVE',
-    photos: [],
-  },
-])
+const config = useRuntimeConfig()
+const baseUrl = import.meta.server ? config.backendUrl : config.public.backendUrl
+
+const { data: list } = await useFetch<{
+  items: Vehicle[]
+  total: number
+  take: number
+  skip: number
+}>(`${baseUrl}/vehicles`, {
+  key: 'home-vehicles',
+  query: { status: 'ACTIVE', take: 8 },
+  default: () => ({ items: [], total: 0, take: 0, skip: 0 }),
+})
+
+const vehicles = computed<Vehicle[]>(() => list.value?.items ?? [])
 
 const searchQuery = ref('')
 
-// TODO: wire search to API query param. Currently filters client-side only.
+// Client-side filter only; replace w/ API query param later.
 const filteredVehicles = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return vehicles.value

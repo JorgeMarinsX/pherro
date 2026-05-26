@@ -1,4 +1,4 @@
-import { Expose, Transform, Type } from 'class-transformer'
+import { Expose, Type } from 'class-transformer'
 
 export class VehiclePhotoDto {
   @Expose() id!: string
@@ -19,13 +19,12 @@ export class VehicleAttributeDto {
 
 export class VehicleListItemDto {
   @Expose() id!: string
+  @Expose() slug!: string
   @Expose() make!: string
   @Expose() model!: string
   @Expose() year!: number
 
-  @Expose()
-  @Transform(({ value }) => (value == null ? null : value.toString()), { toPlainOnly: true })
-  price!: string
+  @Expose() price!: number
 
   @Expose() mileage!: number
   @Expose() color!: string
@@ -35,7 +34,6 @@ export class VehicleListItemDto {
 
   @Expose()
   @Type(() => VehiclePhotoDto)
-  @Transform(({ value }) => (Array.isArray(value) ? value.slice(0, 1) : []), { toPlainOnly: true })
   photos!: VehiclePhotoDto[]
 }
 
