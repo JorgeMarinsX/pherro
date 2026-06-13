@@ -34,6 +34,14 @@ export class VehiclesService {
       where.status = statusFilter as VehicleStatus
     }
 
+    if (q.q?.trim()) {
+      const term = q.q.trim()
+      where.OR = [
+        { make: { contains: term, mode: 'insensitive' } },
+        { model: { contains: term, mode: 'insensitive' } },
+      ]
+    }
+
     if (q.make) where.make = { equals: q.make, mode: 'insensitive' }
     if (q.model) where.model = { contains: q.model, mode: 'insensitive' }
     if (q.color) where.color = { equals: q.color, mode: 'insensitive' }

@@ -37,6 +37,9 @@ export enum FuelTypeFilter {
 }
 
 export class ListVehiclesDto {
+  /** Free-text search across make + model. */
+  @IsOptional() @IsString() q?: string
+
   @IsOptional() @IsString() make?: string
   @IsOptional() @IsString() model?: string
   @IsOptional() @IsString() color?: string

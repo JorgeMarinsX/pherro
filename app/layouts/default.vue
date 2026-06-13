@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-white">
+    <div class="w-full min-h-screen bg-white">
     <SiteHeader />
     <slot />
-  </div>
+    </div>
 </template>
