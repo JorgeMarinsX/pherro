@@ -152,17 +152,27 @@ const whatsappHref = computed(() => {
           />
         </div>
 
+        <div class="mt-8 rounded-xl bg-slate-100 p-5 ring-1 ring-slate-200">
+          <h2 class="font-semibold text-neutral-900">Descrição</h2>
+          <p
+            v-if="v.description"
+            class="mt-3 whitespace-pre-line text-sm text-neutral-700"
+          >
+            {{ v.description }}
+          </p>
+          <VehicleSpecsTable :vehicle="v" class="mt-4" />
+        </div>
+
         <UButton
           v-if="whatsappHref"
           :to="whatsappHref"
           target="_blank"
           rel="noopener"
-          color="primary"
           size="xl"
-          icon="i-lucide-message-circle"
+          icon="i-simple-icons-whatsapp"
           label="Falar no WhatsApp"
           block
-          class="mt-8"
+          class="mt-8 bg-neutral-900 text-white hover:bg-neutral-800"
         />
         <UButton
           v-else
@@ -174,15 +184,6 @@ const whatsappHref = computed(() => {
           block
           class="mt-8"
         />
-
-        <UCard v-if="v.description" class="mt-8">
-          <template #header>
-            <h2 class="font-semibold text-neutral-900">Descrição</h2>
-          </template>
-          <p class="whitespace-pre-line text-sm text-neutral-700">
-            {{ v.description }}
-          </p>
-        </UCard>
 
         <UCard v-if="v.attributes?.length" class="mt-6">
           <template #header>

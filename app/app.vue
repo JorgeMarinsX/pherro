@@ -1,5 +1,11 @@
 <script setup lang="ts">
-useHead({ title: 'Pherro' })
+// Force vertical scrollbar on every page so the viewport width stays constant
+// — prevents the layout shift when navigating between short (no scrollbar) and
+// tall (scrollbar) pages.
+useHead({
+  title: 'Pherro',
+  htmlAttrs: { class: 'overflow-y-scroll' },
+})
 </script>
 
 <template>
