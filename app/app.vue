@@ -6,7 +6,8 @@ useHead({
 
 <template>
 
-  <UApp>
+
+  <UApp :scroll-body="false">
     <NuxtRouteAnnouncer />
     <NuxtLayout>
       <NuxtPage />
