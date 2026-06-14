@@ -82,7 +82,7 @@ const formatPrice = (price: number) =>
               </UFormField>
               <UButton
                 type="submit"
-                color="primary"
+                class="bg-neutral-900 text-white hover:bg-neutral-800"
                 size="xl"
                 icon="i-lucide-search"
                 label="Buscar"
