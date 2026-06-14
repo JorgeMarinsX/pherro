@@ -22,26 +22,21 @@ const { data: list } = await useFetch<{
 
 const vehicles = computed<Vehicle[]>(() => list.value?.items ?? [])
 
-const searchQuery = ref('')
+// Live search + submit/handoff — shared with the listing page's backend query.
+const { query: searchQuery, results, searching, open, submit, goToVehicle } = useVehicleSearch()
 
-// Client-side filter only; replace w/ API query param later.
-const filteredVehicles = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return vehicles.value
-  return vehicles.value.filter((v: Vehicle) =>
-    `${v.make} ${v.model} ${v.year}`.toLowerCase().includes(q),
-  )
-})
-
-function onSearch() {
-  // TODO: trigger API refetch with searchQuery.
-}
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  }).format(price)
 </script>
 
 <template>
   <div>
     <section
-      class="relative isolate overflow-hidden bg-primary-900"
+      class="relative isolate z-10 bg-primary-900"
       :style="{
         backgroundImage: `linear-gradient(135deg, rgba(43,7,7,0.85) 0%, rgba(139,26,26,0.7) 100%), url('/hero.jpg')`,
         backgroundSize: 'cover',
@@ -65,31 +60,84 @@ function onSearch() {
             Veículos seminovos com procedência garantida.
           </p>
 
-          <UForm
-            :state="{ searchQuery }"
-            class="mx-auto mt-10 flex w-full max-w-2xl flex-col gap-2 rounded-xl bg-white/10 p-2 ring-1 ring-white/20 backdrop-blur sm:flex-row"
-            @submit="onSearch"
-          >
-            <UFormField name="searchQuery" class="flex-1">
-              <UInput
-                v-model="searchQuery"
-                icon="i-lucide-search"
+          <div class="relative mx-auto mt-10 w-full max-w-2xl">
+            <UForm
+              :state="{ searchQuery }"
+              class="flex w-full flex-col gap-2 rounded-xl bg-white/10 p-2 ring-1 ring-white/20 backdrop-blur sm:flex-row"
+              @submit="submit"
+            >
+              <UFormField name="searchQuery" class="flex-1">
+                <UInput
+                  v-model="searchQuery"
+                  icon="i-lucide-search"
+                  size="xl"
+                  placeholder="Marca, modelo ou ano..."
+                  class="w-full"
+                  color="neutral"
+                  variant="outline"
+                  :ui="{ base: 'bg-white text-neutral-900 placeholder:text-neutral-500' }"
+                  @focus="open = results.length > 0"
+                  @blur="() => setTimeout(() => (open = false), 150)"
+                />
+              </UFormField>
+              <UButton
+                type="submit"
+                color="primary"
                 size="xl"
-                placeholder="Marca, modelo ou ano..."
-                class="w-full"
-                color="neutral"
-                variant="outline"
-                :ui="{ base: 'bg-white text-neutral-900 placeholder:text-neutral-500' }"
+                icon="i-lucide-search"
+                label="Buscar"
               />
-            </UFormField>
-            <UButton
-              type="submit"
-              color="primary"
-              size="xl"
-              icon="i-lucide-search"
-              label="Buscar"
-            />
-          </UForm>
+            </UForm>
+
+            <!-- Live results dropdown -->
+            <div
+              v-if="open"
+              class="absolute inset-x-2 top-full z-20 mt-2 overflow-hidden rounded-xl bg-white text-left shadow-xl ring-1 ring-neutral-200"
+            >
+              <div v-if="searching" class="flex items-center gap-2 px-4 py-3 text-sm text-neutral-500">
+                <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+                Buscando...
+              </div>
+
+              <ul v-else-if="results.length" class="max-h-80 divide-y divide-neutral-100 overflow-y-auto">
+                <li v-for="vehicle in results" :key="vehicle.id">
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-neutral-50"
+                    @mousedown.prevent="goToVehicle(vehicle.slug)"
+                  >
+                    <div
+                      class="size-12 shrink-0 rounded-md bg-neutral-100 bg-cover bg-center ring-1 ring-neutral-200"
+                      :style="vehicle.photos?.[0]?.url ? { backgroundImage: `url('${vehicle.photos[0].url}')` } : undefined"
+                    />
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-semibold text-neutral-900">
+                        {{ vehicle.make }} {{ vehicle.model }}
+                        <span class="font-normal text-neutral-500">{{ vehicle.year }}</span>
+                      </p>
+                      <p class="text-sm font-bold text-primary-600">{{ formatPrice(vehicle.price) }}</p>
+                    </div>
+                    <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-neutral-400" />
+                  </button>
+                </li>
+
+                <li>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-center gap-2 bg-neutral-50 px-4 py-3 text-sm font-medium text-primary-600 transition hover:bg-neutral-100"
+                    @mousedown.prevent="submit"
+                  >
+                    Ver todos os resultados
+                    <UIcon name="i-lucide-arrow-right" class="size-4" />
+                  </button>
+                </li>
+              </ul>
+
+              <div v-else class="px-4 py-3 text-sm text-neutral-500">
+                Nenhum veículo encontrado.
+              </div>
+            </div>
+          </div>
         </div>
       </UContainer>
     </section>
@@ -114,11 +162,11 @@ function onSearch() {
       </div>
 
       <div
-        v-if="filteredVehicles.length > 0"
+        v-if="vehicles.length > 0"
         class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         <VehicleCard
-          v-for="vehicle in filteredVehicles"
+          v-for="vehicle in vehicles"
           :key="vehicle.id"
           :vehicle="vehicle"
         />
