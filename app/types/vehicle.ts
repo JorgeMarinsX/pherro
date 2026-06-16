@@ -47,6 +47,12 @@ export interface VehicleWhatsapp {
   number: string
 }
 
+// Editable fields surfaced in the create/edit form. Optional id present = edit mode.
+export interface WhatsappFormState {
+  label: string
+  number: string
+}
+
 export interface VehicleAttributeValue {
   attributeDefinitionId: string
   value: string

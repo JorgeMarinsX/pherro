@@ -6,8 +6,24 @@ definePageMeta({
 
 useHead({ title: 'WhatsApp — Pherro Admin' })
 
+import type { VehicleWhatsapp } from '~/types/vehicle'
+
 // TODO: useFetch('/api/admin/whatsapp-numbers').
-const numbers = ref<Array<{ id: string; label: string; number: string }>>([])
+const numbers = ref<VehicleWhatsapp[]>([])
+
+const formOpen = ref(false)
+// null = create mode; set = edit that number.
+const editing = ref<VehicleWhatsapp | null>(null)
+
+function openCreate() {
+  editing.value = null
+  formOpen.value = true
+}
+
+function openEdit(n: VehicleWhatsapp) {
+  editing.value = n
+  formOpen.value = true
+}
 </script>
 
 <template>
@@ -18,7 +34,7 @@ const numbers = ref<Array<{ id: string; label: string; number: string }>>([])
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton color="primary" icon="i-lucide-plus" label="Novo número" :ui="{ base: 'text-white' }" />
+          <UButton color="primary" icon="i-lucide-plus" label="Novo número" :ui="{ base: 'text-white' }" @click="openCreate" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -33,7 +49,7 @@ const numbers = ref<Array<{ id: string; label: string; number: string }>>([])
           <p class="mt-1 text-sm text-muted">
             Adicione números para que clientes possam contatar a loja.
           </p>
-          <UButton color="primary" icon="i-lucide-plus" label="Novo número" class="mt-5" :ui="{ base: 'text-white' }" />
+          <UButton color="primary" icon="i-lucide-plus" label="Novo número" class="mt-5" :ui="{ base: 'text-white' }" @click="openCreate" />
         </div>
       </UCard>
 
@@ -46,7 +62,10 @@ const numbers = ref<Array<{ id: string; label: string; number: string }>>([])
             </div>
             <UDropdownMenu
               :items="[
-                [{ label: 'Editar', icon: 'i-lucide-pencil' }, { label: 'Remover', icon: 'i-lucide-trash-2', color: 'error' }],
+                [
+                  { label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => openEdit(n) },
+                  { label: 'Remover', icon: 'i-lucide-trash-2', color: 'error' },
+                ],
               ]"
             >
               <UButton color="neutral" variant="ghost" icon="i-lucide-more-vertical" />
@@ -54,6 +73,8 @@ const numbers = ref<Array<{ id: string; label: string; number: string }>>([])
           </div>
         </UCard>
       </div>
+
+      <NumeroFormModal v-model:open="formOpen" :number="editing" />
     </template>
   </UDashboardPanel>
 </template>

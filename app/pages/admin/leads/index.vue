@@ -9,6 +9,8 @@ useHead({ title: 'Leads — Pherro Admin' })
 const search = ref('')
 const sourceFilter = ref<'all' | 'MANUAL' | 'FORM'>('all')
 
+const formOpen = ref(false)
+
 const sourceOptions = [
   { label: 'Todas origens', value: 'all' },
   { label: 'Manual', value: 'MANUAL' },
@@ -36,7 +38,7 @@ const columns = [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton color="primary" icon="i-lucide-plus" label="Novo lead" :ui="{ base: 'text-white' }" />
+          <UButton color="primary" icon="i-lucide-plus" label="Novo lead" :ui="{ base: 'text-white' }" @click="formOpen = true" />
         </template>
       </UDashboardNavbar>
 
@@ -64,6 +66,8 @@ const columns = [
       <UCard v-else>
         <UTable :data="rows" :columns="columns" />
       </UCard>
+
+      <LeadFormModal v-model:open="formOpen" />
     </template>
   </UDashboardPanel>
 </template>

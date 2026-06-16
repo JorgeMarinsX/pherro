@@ -6,6 +6,8 @@ definePageMeta({
 
 useHead({ title: 'Atributos — Pherro Admin' })
 
+const formOpen = ref(false)
+
 // TODO: useFetch('/api/admin/attributes').
 const rows = ref<Array<Record<string, unknown>>>([])
 
@@ -26,7 +28,7 @@ const columns = [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton color="primary" icon="i-lucide-plus" label="Novo atributo" :ui="{ base: 'text-white' }" />
+          <UButton color="primary" icon="i-lucide-plus" label="Novo atributo" :ui="{ base: 'text-white' }" @click="formOpen = true" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -41,13 +43,15 @@ const columns = [
           <p class="mt-1 text-sm text-muted">
             Crie atributos como "Ar-condicionado", "Vidros elétricos" para enriquecer os anúncios.
           </p>
-          <UButton color="primary" icon="i-lucide-plus" label="Novo atributo" class="mt-5" :ui="{ base: 'text-white' }" />
+          <UButton color="primary" icon="i-lucide-plus" label="Novo atributo" class="mt-5" :ui="{ base: 'text-white' }" @click="formOpen = true" />
         </div>
       </UCard>
 
       <UCard v-else>
         <UTable :data="rows" :columns="columns" />
       </UCard>
+
+      <AtributoFormModal v-model:open="formOpen" />
     </template>
   </UDashboardPanel>
 </template>
