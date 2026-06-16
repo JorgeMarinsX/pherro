@@ -9,6 +9,8 @@ useHead({ title: 'Anúncios — Pherro Admin' })
 const search = ref('')
 const statusFilter = ref<'all' | 'ACTIVE' | 'INACTIVE'>('all')
 
+const formOpen = ref(false)
+
 const statusOptions = [
   { label: 'Todos', value: 'all' },
   { label: 'Ativos', value: 'ACTIVE' },
@@ -37,11 +39,11 @@ const columns = [
         </template>
         <template #right>
           <UButton
-            to="/admin/anuncios/novo"
             color="primary"
             icon="i-lucide-plus"
             label="Novo anúncio"
             :ui="{ base: 'text-white' }"
+            @click="formOpen = true"
           />
         </template>
       </UDashboardNavbar>
@@ -73,12 +75,12 @@ const columns = [
           <p class="mt-5 text-lg font-semibold text-highlighted">Nenhum anúncio cadastrado</p>
           <p class="mt-1 text-sm text-muted">Crie o primeiro anúncio para começar.</p>
           <UButton
-            to="/admin/anuncios/novo"
             color="primary"
             icon="i-lucide-plus"
             label="Novo anúncio"
             class="mt-5"
             :ui="{ base: 'text-white' }"
+            @click="formOpen = true"
           />
         </div>
       </UCard>
@@ -86,6 +88,8 @@ const columns = [
       <UCard v-else>
         <UTable :data="rows" :columns="columns" />
       </UCard>
+
+      <AnuncioFormModal v-model:open="formOpen" />
     </template>
   </UDashboardPanel>
 </template>

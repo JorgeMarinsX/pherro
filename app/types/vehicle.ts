@@ -27,6 +27,20 @@ export interface Vehicle {
   photos?: VehiclePhoto[]
 }
 
+// Editable fields surfaced in the create/edit form. Optional id present = edit mode.
+export interface VehicleFormState {
+  make: string
+  model: string
+  year: number | undefined
+  price: number | undefined
+  mileage: number | undefined
+  color: string
+  transmission: Transmission
+  fuelType: FuelType
+  status: VehicleStatus
+  description: string
+}
+
 export interface VehicleWhatsapp {
   id: string
   label: string

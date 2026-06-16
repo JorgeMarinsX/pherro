@@ -6,6 +6,8 @@ definePageMeta({
 
 useHead({ title: 'Painel — Pherro Admin' })
 
+const formOpen = ref(false)
+
 // TODO: load real metrics from API.
 const stats = [
   { label: 'Anúncios ativos', value: '0', icon: 'i-lucide-car-front', color: 'primary' },
@@ -24,11 +26,11 @@ const stats = [
         </template>
         <template #right>
           <UButton
-            to="/admin/anuncios/novo"
             color="primary"
             icon="i-lucide-plus"
             label="Novo anúncio"
             :ui="{ base: 'text-white' }"
+            @click="formOpen = true"
           />
         </template>
       </UDashboardNavbar>
@@ -66,6 +68,8 @@ const stats = [
       </UCard>
     </div>
       </div>
+
+      <AnuncioFormModal v-model:open="formOpen" />
     </template>
   </UDashboardPanel>
 </template>
