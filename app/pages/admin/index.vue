@@ -8,13 +8,19 @@ useHead({ title: 'Painel — Pherro Admin' })
 
 const formOpen = ref(false)
 
-// TODO: load real metrics from API.
-const stats = [
-  { label: 'Anúncios ativos', value: '0', icon: 'i-lucide-car-front', color: 'primary' },
+// Active-listings count: fetch with take=1 (we only need `total`, not the rows).
+const { list } = useAdminVehicles()
+const activeQuery = ref<Record<string, unknown>>({ status: 'ACTIVE', take: 1, skip: 0 })
+const { data: activeData, refresh: refreshActive } = list(activeQuery, 'admin-painel-active-count')
+const activeCount = computed(() => activeData.value?.total ?? 0)
+
+// TODO: leads / views / whatsapp metrics need their own endpoints — still stubbed.
+const stats = computed(() => [
+  { label: 'Anúncios ativos', value: String(activeCount.value), icon: 'i-lucide-car-front', color: 'primary' },
   { label: 'Leads no mês', value: '0', icon: 'i-lucide-users', color: 'info' },
   { label: 'Visualizações', value: '0', icon: 'i-lucide-eye', color: 'success' },
   { label: 'Conversas WhatsApp', value: '0', icon: 'i-lucide-message-circle', color: 'warning' },
-] as const
+])
 </script>
 
 <template>
@@ -69,7 +75,7 @@ const stats = [
     </div>
       </div>
 
-      <AnuncioFormModal v-model:open="formOpen" />
+      <AnuncioFormModal v-model:open="formOpen" @submitted="refreshActive" />
     </template>
   </UDashboardPanel>
 </template>

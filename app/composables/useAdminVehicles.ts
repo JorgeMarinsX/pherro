@@ -10,10 +10,12 @@ import type {
 // backend directly — the proxy injects the session bearer + handles refresh.
 export function useAdminVehicles() {
   // List — useFetch so the admin list is SSR + reactive to filter refs.
-  // `query` is a reactive ref; useFetch re-runs when it changes.
-  function list(query: Ref<Record<string, unknown>>) {
+  // `query` is a reactive ref; useFetch re-runs when it changes. Pass a distinct
+  // `key` when calling from a different page so the dashboard count and the
+  // anúncios table don't share/overwrite each other's payload.
+  function list(query: Ref<Record<string, unknown>>, key = 'admin-veiculos-list') {
     return useFetch<VehicleListResponse>('/api/admin/vehicles', {
-      key: 'admin-veiculos-list',
+      key,
       query,
       default: () => ({ items: [], total: 0, take: 24, skip: 0 }),
     })
