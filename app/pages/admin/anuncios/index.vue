@@ -17,7 +17,7 @@ const statusOptions = [
   { label: 'Inativos', value: 'INACTIVE' },
 ]
 
-const { list, get, remove } = useAdminVehicles()
+const { list, get, update, remove } = useAdminVehicles()
 const toast = useToast()
 
 const PAGE_SIZE = 24
@@ -87,6 +87,27 @@ async function openEdit(v: Vehicle) {
     toast.add({ title: 'Não foi possível carregar o anúncio.', color: 'error' })
   } finally {
     editLoadingId.value = null
+  }
+}
+
+// --- Quick status toggle (no modal) ---
+const togglingId = ref<string | null>(null)
+
+async function toggleStatus(v: Vehicle) {
+  if (togglingId.value) return
+  const next = v.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+  togglingId.value = v.id
+  try {
+    await update(v.id, { status: next })
+    toast.add({
+      title: next === 'ACTIVE' ? 'Anúncio ativado' : 'Anúncio desativado',
+      color: 'success',
+    })
+    await refresh()
+  } catch {
+    toast.add({ title: 'Não foi possível alterar o status.', color: 'error' })
+  } finally {
+    togglingId.value = null
   }
 }
 
@@ -224,6 +245,15 @@ async function confirmDelete() {
 
           <template #actions-cell="{ row }">
             <div class="flex items-center justify-end gap-1">
+              <USwitch
+                :model-value="row.original.status === 'ACTIVE'"
+                color="success"
+                :loading="togglingId === row.original.id"
+                :disabled="Boolean(togglingId)"
+                :aria-label="row.original.status === 'ACTIVE' ? 'Desativar' : 'Ativar'"
+                class="mr-1"
+                @update:model-value="toggleStatus(row.original)"
+              />
               <UButton
                 color="neutral"
                 variant="ghost"

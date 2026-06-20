@@ -124,10 +124,16 @@ export class VehiclesService {
     return dto
   }
 
+  // by-slug is the public storefront read path (admin uses findOne by id).
+  // Only ACTIVE vehicles are publicly visible — a deactivated listing must 404
+  // even via a direct/cached slug link, not just disappear from the list.
   async findBySlug(slug: string): Promise<VehicleDetailDto> {
     const key = slugCacheKey(slug)
     const cached = await this.cache.get<VehicleDetailDto>(key)
     if (cached && Array.isArray((cached as VehicleDetailDto).attributes)) {
+      if (cached.status !== VehicleStatus.ACTIVE) {
+        throw new NotFoundException(`Vehicle slug "${slug}" not found.`)
+      }
       return cached
     }
 
@@ -142,8 +148,13 @@ export class VehiclesService {
     if (!v) throw new NotFoundException(`Vehicle slug "${slug}" not found.`)
 
     const dto = plainToInstance(VehicleDetailDto, v, { excludeExtraneousValues: true })
+    // Still warm the cache (keeps id/slug keys hot for admin reads), but hide
+    // non-ACTIVE from the public response.
     await this.cache.set(key, dto, VEHICLE_TTL_MS)
     await this.cache.set(cacheKey(dto.id), dto, VEHICLE_TTL_MS)
+    if (dto.status !== VehicleStatus.ACTIVE) {
+      throw new NotFoundException(`Vehicle slug "${slug}" not found.`)
+    }
     return dto
   }
 
