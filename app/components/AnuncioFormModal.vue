@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Vehicle, VehicleFormState } from '~/types/vehicle'
+import type { Vehicle, VehicleCreatePayload, VehicleFormState } from '~/types/vehicle'
 import { FUEL_LABELS, TRANSMISSION_LABELS } from '~/types/vehicle'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -42,7 +42,6 @@ function fromVehicle(v: Vehicle): VehicleFormState {
   }
 }
 
-// TODO: wire submit to POST/PATCH /api/admin/vehicles.
 const state = reactive<VehicleFormState>(blankState())
 
 // Reset or prefill each time modal opens, based on passed context.
@@ -58,10 +57,73 @@ const statusOptions = [
   { label: 'Inativo', value: 'INACTIVE' },
 ]
 
-function onSubmit() {
-  // TODO: POST (create) or PATCH `/api/admin/vehicles/${props.vehicle?.id}` (edit).
-  emit('submitted')
-  open.value = false
+const { create, update } = useAdminVehicles()
+const toast = useToast()
+const loading = ref(false)
+
+// UInput type=number can yield strings; backend @IsInt rejects "2024".
+function toInt(v: number | string | undefined): number {
+  return Math.trunc(Number(v))
+}
+
+// Build the payload explicitly — never spread `state` raw. forbidNonWhitelisted
+// 400s on any field the DTO doesn't whitelist.
+function buildPayload(): VehicleCreatePayload {
+  return {
+    make: state.make.trim(),
+    model: state.model.trim(),
+    year: toInt(state.year),
+    price: toInt(state.price),
+    mileage: toInt(state.mileage),
+    color: state.color.trim(),
+    description: state.description.trim() || null,
+    transmission: state.transmission,
+    fuelType: state.fuelType,
+    status: state.status,
+  }
+}
+
+// Client-side guard — avoid round-tripping obvious 400s. Returns pt-BR error or null.
+function validate(): string | null {
+  if (!state.make.trim()) return 'Informe a marca.'
+  if (!state.model.trim()) return 'Informe o modelo.'
+  if (!Number.isInteger(toInt(state.year)) || toInt(state.year) < 1900) return 'Informe um ano válido.'
+  if (!Number.isFinite(Number(state.price)) || toInt(state.price) < 0) return 'Informe um preço válido.'
+  if (!Number.isFinite(Number(state.mileage)) || toInt(state.mileage) < 0) return 'Informe a quilometragem.'
+  return null
+}
+
+// Nest validation errors arrive as { message: string | string[] }.
+function errorMessage(e: unknown): string {
+  const msg = (e as { data?: { message?: string | string[] } })?.data?.message
+  if (Array.isArray(msg)) return msg.join(' ')
+  if (typeof msg === 'string') return msg
+  return 'Não foi possível salvar o anúncio.'
+}
+
+async function onSubmit() {
+  const invalid = validate()
+  if (invalid) {
+    toast.add({ title: invalid, color: 'error' })
+    return
+  }
+
+  loading.value = true
+  try {
+    const payload = buildPayload()
+    if (isEdit.value && props.vehicle?.id) {
+      await update(props.vehicle.id, payload)
+    } else {
+      await create(payload)
+    }
+    toast.add({ title: 'Anúncio salvo', color: 'success' })
+    emit('submitted')
+    open.value = false
+  } catch (e) {
+    toast.add({ title: errorMessage(e), color: 'error' })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -108,8 +170,15 @@ function onSubmit() {
         </UFormField>
 
         <div class="flex items-center justify-end gap-2 pt-2">
-          <UButton color="neutral" variant="ghost" label="Cancelar" @click="open = false" />
-          <UButton type="submit" color="primary" icon="i-lucide-save" :label="isEdit ? 'Salvar alterações' : 'Salvar anúncio'" />
+          <UButton color="neutral" variant="ghost" label="Cancelar" :disabled="loading" @click="open = false" />
+          <UButton
+            type="submit"
+            color="primary"
+            icon="i-lucide-save"
+            :loading="loading"
+            :label="isEdit ? 'Salvar alterações' : 'Salvar anúncio'"
+            :ui="{ base: 'text-white' }"
+          />
         </div>
       </UForm>
     </template>

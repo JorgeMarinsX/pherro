@@ -165,6 +165,8 @@ export class VehiclesService {
             description: dto.description ?? null,
             transmission: dto.transmission,
             fuelType: dto.fuelType,
+            // undefined → Prisma schema default (ACTIVE).
+            status: (dto.status as VehicleStatus | undefined) ?? undefined,
             whatsappNumberId: dto.whatsappNumberId ?? null,
             photos: dto.photos?.length
               ? { create: dto.photos.map((p) => ({ url: p.url, position: p.position })) }

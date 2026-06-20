@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator'
 import { FuelTypeFilter, TransmissionFilter } from './list-vehicles.dto'
+import { VehicleStatusInput } from './vehicle-status.enum'
 
 export class CreateVehiclePhotoDto {
   @IsString() @MaxLength(1000) url!: string
@@ -35,6 +36,11 @@ export class CreateVehicleDto {
 
   @IsEnum(TransmissionFilter) transmission!: TransmissionFilter
   @IsEnum(FuelTypeFilter) fuelType!: FuelTypeFilter
+
+  // Optional on create: form sends it (admin may create an INACTIVE draft), and
+  // forbidNonWhitelisted would 400 on the extra field if it weren't whitelisted.
+  // Omitted → Prisma schema default ACTIVE applies.
+  @IsOptional() @IsEnum(VehicleStatusInput) status?: VehicleStatusInput
 
   @IsOptional() @IsString() whatsappNumberId?: string | null
 
