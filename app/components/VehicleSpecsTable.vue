@@ -16,13 +16,17 @@ const formattedMileage = computed(() =>
   new Intl.NumberFormat('pt-BR').format(props.vehicle.mileage),
 )
 
-// Static spec rows. Extend as more vehicle specifics get wired up.
+// Static spec rows + any custom attributes attached to this vehicle.
 const rows = computed<SpecRow[]>(() => [
   { label: 'Câmbio', value: TRANSMISSION_LABELS[props.vehicle.transmission] },
   { label: 'Combustível', value: FUEL_LABELS[props.vehicle.fuelType] },
   { label: 'Ano', value: String(props.vehicle.year) },
   { label: 'Quilometragem', value: `${formattedMileage.value} km` },
   { label: 'Cor', value: props.vehicle.color },
+  ...(props.vehicle.attributes ?? []).map(a => ({
+    label: a.attributeDefinition.name,
+    value: a.value,
+  })),
 ])
 
 const columns: TableColumn<SpecRow>[] = [
