@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { AttributeDefinition, AttributeFormState } from '~/types/attribute'
+import type {
+  AttributeCreatePayload,
+  AttributeDefinition,
+  AttributeFormState,
+} from '~/types/attribute'
 import { ATTRIBUTE_TYPE_LABELS } from '~/types/attribute'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -9,6 +13,10 @@ const props = defineProps<{ attribute?: AttributeDefinition | null }>()
 
 const emit = defineEmits<{ submitted: [] }>()
 
+const { create, update } = useAdminAttributes()
+const toast = useToast()
+const submitting = ref(false)
+
 const isEdit = computed(() => Boolean(props.attribute?.id))
 const title = computed(() => (isEdit.value ? 'Editar atributo' : 'Novo atributo'))
 
@@ -16,6 +24,7 @@ function blankState(): AttributeFormState {
   return {
     name: '',
     slug: '',
+    icon: '',
     type: 'BOOLEAN',
     options: [],
   }
@@ -25,12 +34,12 @@ function fromAttribute(a: AttributeDefinition): AttributeFormState {
   return {
     name: a.name,
     slug: a.slug,
+    icon: a.icon ?? '',
     type: a.type,
     options: a.options ?? [],
   }
 }
 
-// TODO: wire submit to POST/PATCH /api/admin/attributes.
 const state = reactive<AttributeFormState>(blankState())
 
 // Reset or prefill each time modal opens, based on passed context.
@@ -49,10 +58,36 @@ const optionsText = computed({
   },
 })
 
-function onSubmit() {
-  // TODO: POST (create) or PATCH `/api/admin/attributes/${props.attribute?.id}` (edit).
-  emit('submitted')
-  open.value = false
+function buildPayload(): AttributeCreatePayload {
+  return {
+    name: state.name,
+    slug: state.slug,
+    icon: state.icon || null,
+    type: state.type,
+    ...(state.type === 'ENUM' ? { options: state.options } : {}),
+  }
+}
+
+async function onSubmit() {
+  submitting.value = true
+  try {
+    const payload = buildPayload()
+    if (isEdit.value && props.attribute) {
+      await update(props.attribute.id, payload)
+    } else {
+      await create(payload)
+    }
+    emit('submitted')
+    open.value = false
+  } catch {
+    toast.add({
+      title: 'Erro ao salvar atributo',
+      description: 'Verifique os dados e tente novamente.',
+      color: 'error',
+    })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -66,6 +101,9 @@ function onSubmit() {
       <UForm :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Nome" name="name" required>
           <UInput v-model="state.name" placeholder="Ex.: Ar-condicionado" class="w-full" />
+        </UFormField>
+        <UFormField label="Ícone" name="icon" help="Opcional. Exibido nos anúncios.">
+          <IconPicker v-model="state.icon" />
         </UFormField>
         <UFormField label="Slug" name="slug" required help="Identificador único, sem espaços.">
           <UInput v-model="state.slug" placeholder="Ex.: ar-condicionado" class="w-full" />
@@ -85,7 +123,7 @@ function onSubmit() {
 
         <div class="flex items-center justify-end gap-2 pt-2">
           <UButton color="neutral" variant="ghost" label="Cancelar" @click="open = false" />
-          <UButton type="submit" color="primary" icon="i-lucide-save" :label="isEdit ? 'Salvar alterações' : 'Salvar atributo'" />
+          <UButton type="submit" color="primary" icon="i-lucide-save" :loading="submitting" :label="isEdit ? 'Salvar alterações' : 'Salvar atributo'" />
         </div>
       </UForm>
     </template>

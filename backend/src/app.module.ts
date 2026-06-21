@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
+import { AttributesModule } from './attributes/attributes.module'
 import { AuthModule } from './auth/auth.module'
 import { LeadsModule } from './leads/leads.module'
 import { PrismaModule } from './prisma/prisma.module'
@@ -26,6 +27,7 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
     ShopConfigModule,
     VehiclesModule,
     WhatsappNumbersModule,
+    AttributesModule,
     LeadsModule,
   ],
   controllers: [AppController],

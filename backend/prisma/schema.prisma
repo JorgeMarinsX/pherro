@@ -102,6 +102,7 @@ model AttributeDefinition {
   id         String             @id @default(cuid())
   name       String
   slug       String             @unique
+  icon       String?            // Iconify name, e.g. "i-lucide-snowflake"
   type       AttributeType
   options    Json?
   createdAt  DateTime           @default(now())

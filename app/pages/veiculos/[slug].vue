@@ -188,10 +188,13 @@ const whatsappHref = computed(() =>
           <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <div
               v-for="attr in v.attributes"
-              :key="attr.attributeDefinitionId"
+              :key="attr.attributeDefinition.id"
               class="flex items-center justify-between gap-3 border-b border-neutral-100 pb-2 last:border-0 last:pb-0"
             >
-              <dt class="text-neutral-500">{{ attr.attributeDefinitionId }}</dt>
+              <dt class="flex items-center gap-2 text-neutral-500">
+                <UIcon v-if="attr.attributeDefinition.icon" :name="attr.attributeDefinition.icon" class="size-4" />
+                {{ attr.attributeDefinition.name }}
+              </dt>
               <dd class="font-medium text-neutral-900">{{ attr.value }}</dd>
             </div>
           </dl>

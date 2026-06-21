@@ -7,6 +7,7 @@ export interface AttributeDefinition {
   id: string
   name: string
   slug: string
+  icon?: string | null
   type: AttributeType
   options?: string[] | null
 }
@@ -15,9 +16,22 @@ export interface AttributeDefinition {
 export interface AttributeFormState {
   name: string
   slug: string
+  icon: string
   type: AttributeType
   options: string[]
 }
+
+// Explicit payloads sent to the BFF — never spread form state raw
+// (forbidNonWhitelisted 400s on extras).
+export interface AttributeCreatePayload {
+  name: string
+  slug: string
+  icon?: string | null
+  type: AttributeType
+  options?: string[]
+}
+
+export type AttributeUpdatePayload = Partial<AttributeCreatePayload>
 
 export const ATTRIBUTE_TYPE_LABELS: Record<AttributeType, string> = {
   BOOLEAN: 'Sim/Não',

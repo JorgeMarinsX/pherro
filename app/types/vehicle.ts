@@ -28,6 +28,11 @@ export interface Vehicle {
 }
 
 // Editable fields surfaced in the create/edit form. Optional id present = edit mode.
+export interface VehicleAttributeInput {
+  attributeDefinitionId: string
+  value: string
+}
+
 export interface VehicleFormState {
   make: string
   model: string
@@ -39,6 +44,7 @@ export interface VehicleFormState {
   fuelType: FuelType
   status: VehicleStatus
   description: string
+  attributes: VehicleAttributeInput[]
 }
 
 export interface VehicleWhatsapp {
@@ -68,9 +74,17 @@ export interface WhatsappCreatePayload {
 
 export type WhatsappUpdatePayload = Partial<WhatsappCreatePayload>
 
+// Read shape on the vehicle detail DTO — backend joins the definition's
+// display fields so the storefront renders name + icon, not the cuid.
 export interface VehicleAttributeValue {
-  attributeDefinitionId: string
   value: string
+  attributeDefinition: {
+    id: string
+    name: string
+    slug: string
+    icon?: string | null
+    type: string
+  }
 }
 
 export interface VehicleDetail extends Vehicle {

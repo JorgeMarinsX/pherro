@@ -12,9 +12,20 @@ export class VehicleWhatsappDto {
   @Expose() number!: string
 }
 
+export class AttributeDefinitionDto {
+  @Expose() id!: string
+  @Expose() name!: string
+  @Expose() slug!: string
+  @Expose() icon!: string | null
+  @Expose() type!: string
+}
+
 export class VehicleAttributeDto {
-  @Expose() attributeDefinitionId!: string
   @Expose() value!: string
+
+  @Expose()
+  @Type(() => AttributeDefinitionDto)
+  attributeDefinition!: AttributeDefinitionDto
 }
 
 export class VehicleListItemDto {

@@ -1,3 +1,4 @@
+import type { AttributeDefinition } from '~/types/attribute'
 import type { Transmission, FuelType } from '~/types/vehicle'
 import { TRANSMISSION_LABELS, FUEL_LABELS } from '~/types/vehicle'
 
@@ -32,6 +33,24 @@ export const useAttributesStore = defineStore('attributes', () => {
     return fuelLabels.value[v] ?? v
   }
 
+  // Definitions slice — public display metadata only (name/slug/icon/type).
+  // No token, no PII (pinia_state_plan.md §4).
+  const definitions = ref<AttributeDefinition[]>([])
+
+  async function fetchDefinitions() {
+    // BFF proxy; useRequestFetch forwards SSR cookies (mirrors auth store).
+    const request = useRequestFetch()
+    definitions.value = await request<AttributeDefinition[]>('/api/admin/attributes')
+  }
+
+  const byId = computed(() => new Map(definitions.value.map(d => [d.id, d])))
+  function iconFor(id: string): string {
+    return byId.value.get(id)?.icon ?? 'i-lucide-tag'
+  }
+  function nameFor(id: string): string {
+    return byId.value.get(id)?.name ?? id
+  }
+
   return {
     transmissionLabels,
     fuelLabels,
@@ -39,5 +58,9 @@ export const useAttributesStore = defineStore('attributes', () => {
     fuelOptions,
     transmissionLabel,
     fuelLabel,
+    definitions,
+    fetchDefinitions,
+    iconFor,
+    nameFor,
   }
 })

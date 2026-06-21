@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { Vehicle, VehicleCreatePayload, VehicleFormState } from '~/types/vehicle'
+import type { AttributeDefinition } from '~/types/attribute'
+import type { VehicleAttributeInput, VehicleCreatePayload, VehicleDetail, VehicleFormState } from '~/types/vehicle'
 import { FUEL_LABELS, TRANSMISSION_LABELS } from '~/types/vehicle'
 
 const open = defineModel<boolean>('open', { default: false })
 
 // Present = edit mode (prefill + "Editar anúncio"). Absent = create mode (blank + "Novo anúncio").
-const props = defineProps<{ vehicle?: Vehicle | null }>()
+const props = defineProps<{ vehicle?: VehicleDetail | null }>()
 
 const emit = defineEmits<{ submitted: [] }>()
 
@@ -24,10 +25,11 @@ function blankState(): VehicleFormState {
     fuelType: 'FLEX',
     status: 'ACTIVE',
     description: '',
+    attributes: [],
   }
 }
 
-function fromVehicle(v: Vehicle): VehicleFormState {
+function fromVehicle(v: VehicleDetail): VehicleFormState {
   return {
     make: v.make,
     model: v.model,
@@ -39,6 +41,10 @@ function fromVehicle(v: Vehicle): VehicleFormState {
     fuelType: v.fuelType,
     status: v.status,
     description: v.description ?? '',
+    attributes: (v.attributes ?? []).map(a => ({
+      attributeDefinitionId: a.attributeDefinition.id,
+      value: a.value,
+    })),
   }
 }
 
@@ -61,6 +67,41 @@ const { create, update } = useAdminVehicles()
 const toast = useToast()
 const loading = ref(false)
 
+// Attribute definitions for the attach section. Hydrate once when the modal opens.
+const attrStore = useAttributesStore()
+watch(open, (isOpen: boolean) => {
+  if (isOpen && !attrStore.definitions.length) attrStore.fetchDefinitions()
+})
+
+const defById = computed(
+  () => new Map((attrStore.definitions as AttributeDefinition[]).map(d => [d.id, d])),
+)
+// Only definitions not already attached can be added.
+const availableDefs = computed(() =>
+  (attrStore.definitions as AttributeDefinition[]).filter(
+    d => !state.attributes.some((a: VehicleAttributeInput) => a.attributeDefinitionId === d.id),
+  ),
+)
+
+function addAttribute(id: string) {
+  const def = defById.value.get(id)
+  if (!def) return
+  // BOOLEAN defaults to "Sim"; ENUM to its first option; TEXT empty.
+  const value = def.type === 'BOOLEAN' ? 'Sim' : def.type === 'ENUM' ? (def.options?.[0] ?? '') : ''
+  state.attributes.push({ attributeDefinitionId: id, value })
+}
+
+function removeAttribute(id: string) {
+  state.attributes = state.attributes.filter(
+    (a: VehicleAttributeInput) => a.attributeDefinitionId !== id,
+  )
+}
+
+const BOOL_OPTIONS = [{ label: 'Sim', value: 'Sim' }, { label: 'Não', value: 'Não' }]
+function enumOptions(id: string) {
+  return (defById.value.get(id)?.options ?? []).map((o: string) => ({ label: o, value: o }))
+}
+
 // UInput type=number can yield strings; backend @IsInt rejects "2024".
 function toInt(v: number | string | undefined): number {
   return Math.trunc(Number(v))
@@ -80,6 +121,12 @@ function buildPayload(): VehicleCreatePayload {
     transmission: state.transmission,
     fuelType: state.fuelType,
     status: state.status,
+    attributes: state.attributes
+      .filter((a: VehicleAttributeInput) => a.value.trim())
+      .map((a: VehicleAttributeInput) => ({
+        attributeDefinitionId: a.attributeDefinitionId,
+        value: a.value.trim(),
+      })),
   }
 }
 
@@ -167,6 +214,58 @@ async function onSubmit() {
 
         <UFormField label="Descrição" name="description">
           <UTextarea v-model="state.description" :rows="5" placeholder="Detalhes do veículo..." class="w-full" />
+        </UFormField>
+
+        <UFormField label="Atributos" name="attributes">
+          <div class="space-y-2">
+            <div
+              v-for="attr in state.attributes"
+              :key="attr.attributeDefinitionId"
+              class="flex items-center gap-2"
+            >
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <UIcon
+                  :name="defById.get(attr.attributeDefinitionId)?.icon || 'i-lucide-tag'"
+                  class="size-4 shrink-0 text-muted"
+                />
+                <span class="truncate text-sm">
+                  {{ defById.get(attr.attributeDefinitionId)?.name ?? attr.attributeDefinitionId }}
+                </span>
+              </div>
+              <USelect
+                v-if="defById.get(attr.attributeDefinitionId)?.type === 'BOOLEAN'"
+                v-model="attr.value"
+                :items="BOOL_OPTIONS"
+                value-key="value"
+                class="w-40"
+              />
+              <USelect
+                v-else-if="defById.get(attr.attributeDefinitionId)?.type === 'ENUM'"
+                v-model="attr.value"
+                :items="enumOptions(attr.attributeDefinitionId)"
+                value-key="value"
+                class="w-40"
+              />
+              <UInput v-else v-model="attr.value" placeholder="Valor" class="w-40" />
+              <UButton
+                color="error"
+                variant="ghost"
+                icon="i-lucide-x"
+                aria-label="Remover atributo"
+                @click="removeAttribute(attr.attributeDefinitionId)"
+              />
+            </div>
+
+            <UDropdownMenu
+              v-if="availableDefs.length"
+              :items="[availableDefs.map(d => ({ label: d.name, icon: d.icon || 'i-lucide-tag', onSelect: () => addAttribute(d.id) }))]"
+            >
+              <UButton color="neutral" variant="outline" icon="i-lucide-plus" label="Adicionar atributo" />
+            </UDropdownMenu>
+            <p v-else-if="!state.attributes.length" class="text-sm text-muted">
+              Nenhum atributo cadastrado. Crie atributos na página Atributos.
+            </p>
+          </div>
         </UFormField>
 
         <div class="flex items-center justify-end gap-2 pt-2">

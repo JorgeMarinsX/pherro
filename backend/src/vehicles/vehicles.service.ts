@@ -113,7 +113,14 @@ export class VehiclesService {
       include: {
         photos: { orderBy: { position: 'asc' } },
         whatsappNumber: { select: { id: true, label: true, number: true } },
-        attributes: { select: { attributeDefinitionId: true, value: true } },
+        attributes: {
+          select: {
+            value: true,
+            attributeDefinition: {
+              select: { id: true, name: true, slug: true, icon: true, type: true },
+            },
+          },
+        },
       },
     })
     if (!v) throw new NotFoundException(`Vehicle ${id} not found.`)
@@ -142,7 +149,14 @@ export class VehiclesService {
       include: {
         photos: { orderBy: { position: 'asc' } },
         whatsappNumber: { select: { id: true, label: true, number: true } },
-        attributes: { select: { attributeDefinitionId: true, value: true } },
+        attributes: {
+          select: {
+            value: true,
+            attributeDefinition: {
+              select: { id: true, name: true, slug: true, icon: true, type: true },
+            },
+          },
+        },
       },
     })
     if (!v) throw new NotFoundException(`Vehicle slug "${slug}" not found.`)
@@ -194,7 +208,14 @@ export class VehiclesService {
           include: {
             photos: { orderBy: { position: 'asc' } },
             whatsappNumber: { select: { id: true, label: true, number: true } },
-            attributes: { select: { attributeDefinitionId: true, value: true } },
+            attributes: {
+          select: {
+            value: true,
+            attributeDefinition: {
+              select: { id: true, name: true, slug: true, icon: true, type: true },
+            },
+          },
+        },
           },
         })
         const result = plainToInstance(VehicleDetailDto, created, { excludeExtraneousValues: true })
