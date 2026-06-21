@@ -46,11 +46,15 @@ model ShopConfig {
 model WhatsappNumber {
   id           String      @id @default(cuid())
   label        String
+  description  String?     @db.Text
   number       String
+  isActive     Boolean     @default(false)
   shopConfigId String
   shopConfig   ShopConfig  @relation(fields: [shopConfigId], references: [id], onDelete: Cascade)
   createdAt    DateTime    @default(now())
   vehicles     Vehicle[]
+
+  @@index([shopConfigId, isActive])
 }
 
 // ---------------- Vehicles ----------------

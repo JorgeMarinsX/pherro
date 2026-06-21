@@ -44,14 +44,29 @@ export interface VehicleFormState {
 export interface VehicleWhatsapp {
   id: string
   label: string
+  description?: string | null
   number: string
+  isActive: boolean
 }
 
 // Editable fields surfaced in the create/edit form. Optional id present = edit mode.
 export interface WhatsappFormState {
   label: string
+  description: string
   number: string
+  isActive: boolean
 }
+
+// Explicit payloads sent to the BFF — never spread form state raw
+// (forbidNonWhitelisted 400s on extras).
+export interface WhatsappCreatePayload {
+  label: string
+  description?: string | null
+  number: string
+  isActive?: boolean
+}
+
+export type WhatsappUpdatePayload = Partial<WhatsappCreatePayload>
 
 export interface VehicleAttributeValue {
   attributeDefinitionId: string

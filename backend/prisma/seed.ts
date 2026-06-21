@@ -152,6 +152,7 @@ async function main() {
       data: {
         label: 'Vendas',
         number: '+5511999999999',
+        isActive: true,
         shopConfigId: shop.id,
       },
     })

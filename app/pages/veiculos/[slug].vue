@@ -51,15 +51,11 @@ const sortedPhotos = computed(() =>
 const activePhotoIdx = ref(0)
 const activePhoto = computed(() => sortedPhotos.value[activePhotoIdx.value])
 
-const whatsappHref = computed(() => {
-  const num = v.whatsappNumber?.number
-  if (!num) return null
-  const clean = num.replace(/\D/g, '')
-  const msg = encodeURIComponent(
-    `Olá! Tenho interesse no ${v.make} ${v.model} ${v.year}.`,
-  )
-  return `https://wa.me/${clean}?text=${msg}`
-})
+// Storefront CTAs always use the single ACTIVE number (per-vehicle FK ignored).
+const { urlFor } = useWhatsapp()
+const whatsappHref = computed(() =>
+  urlFor(`Olá! Tenho interesse no ${v.make} ${v.model} ${v.year}.`),
+)
 </script>
 
 <template>

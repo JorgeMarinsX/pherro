@@ -22,6 +22,12 @@ const { data: list } = await useFetch<{
 
 const vehicles = computed<Vehicle[]>(() => list.value?.items ?? [])
 
+// Storefront WhatsApp CTAs route through the single ACTIVE number.
+const { urlFor } = useWhatsapp()
+const whatsappCtaHref = computed(
+  () => urlFor('Olá! Gostaria de saber mais sobre os veículos.') ?? '/contato',
+)
+
 // Live search + submit/handoff — shared with the listing page's backend query.
 const { query: searchQuery, results, searching, open, submit, goToVehicle } = useVehicleSearch()
 
@@ -235,10 +241,12 @@ const formatPrice = (price: number) =>
           </p>
         </div>
         <UButton
-          to="/contato"
+          :to="whatsappCtaHref"
+          :target="whatsappCtaHref.startsWith('http') ? '_blank' : undefined"
+          :rel="whatsappCtaHref.startsWith('http') ? 'noopener' : undefined"
           color="neutral"
           size="xl"
-          icon="i-lucide-message-circle"
+          icon="i-simple-icons-whatsapp"
           label="Falar no WhatsApp"
           :ui="{ base: 'bg-white text-primary-700 hover:bg-neutral-100' }"
         />

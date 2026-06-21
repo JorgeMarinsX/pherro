@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module'
 import { ShopConfigModule } from './shop-config/shop-config.module'
 import { UsersModule } from './users/users.module'
 import { VehiclesModule } from './vehicles/vehicles.module'
+import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { VehiclesModule } from './vehicles/vehicles.module'
     AuthModule,
     ShopConfigModule,
     VehiclesModule,
+    WhatsappNumbersModule,
     LeadsModule,
   ],
   controllers: [AppController],
