@@ -1,18 +1,21 @@
 <script setup lang="ts">
-// TODO: load shopName + logoUrl from ShopConfig via API once endpoint exists.
-const shopName = 'Pherro'
+const auth = useAuthStore()
+const { email } = storeToRefs(auth)
 
-const { data: me } = await useFetch<{ authenticated: boolean; email?: string }>('/api/auth/me', {
-  key: 'auth:me',
-})
+// Identity already hydrated once by middleware/admin.ts via callOnce; reuse it.
+const shop = useShopConfigStore()
+const { shopName } = storeToRefs(shop)
+await callOnce('shop-config', () => shop.fetchConfig())
 
 const currentUser = computed(() => ({
   name: 'Administrador',
-  email: me.value?.email ?? 'admin@pherro.local',
+  email: email.value ?? 'admin@pherro.local',
 }))
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
+  auth.$reset()
+  shop.$reset()
   await navigateTo('/admin/login')
 }
 
@@ -55,7 +58,13 @@ const userMenu = computed(() => [
     >
       <template #header="{ collapsed: headerCollapsed }">
         <NuxtLink to="/admin" class="flex items-center gap-2 text-highlighted">
-          <UIcon name="i-lucide-car-front" class="size-7 shrink-0 text-primary-600" />
+          <img
+            v-if="shop.logoUrl"
+            :src="shop.logoUrl"
+            :alt="shopName"
+            class="size-7 shrink-0 object-contain"
+          >
+          <UIcon v-else name="i-lucide-car-front" class="size-7 shrink-0 text-primary-600" />
           <span v-if="!headerCollapsed" class="text-lg font-extrabold tracking-tight">
             {{ shopName }}
           </span>

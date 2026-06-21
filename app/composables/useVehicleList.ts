@@ -1,6 +1,5 @@
 import type { ComputedRef, Ref } from '#imports'
 import type { Vehicle } from '~/types/vehicle'
-import { TRANSMISSION_LABELS, FUEL_LABELS } from '~/types/vehicle'
 
 interface VehicleListResponse {
   items: Vehicle[]
@@ -24,14 +23,7 @@ const sortOptions = [
   { label: 'Ano (novo → velho)', value: 'year_desc' },
   { label: 'Menor km', value: 'mileage_asc' },
 ]
-const transmissionOptions = [
-  { label: 'Todas', value: ALL },
-  ...Object.entries(TRANSMISSION_LABELS).map(([value, label]) => ({ label, value })),
-]
-const fuelOptions = [
-  { label: 'Todos', value: ALL },
-  ...Object.entries(FUEL_LABELS).map(([value, label]) => ({ label, value })),
-]
+type FilterOption = { label: string; value: string }
 
 function toNum(v: unknown): number | undefined {
   if (v == null || v === '') return undefined
@@ -57,8 +49,8 @@ export interface VehicleListState {
   page: Ref<number>
   // select options + bounds
   sortOptions: typeof sortOptions
-  transmissionOptions: typeof transmissionOptions
-  fuelOptions: typeof fuelOptions
+  transmissionOptions: FilterOption[]
+  fuelOptions: FilterOption[]
   minYear: number
   maxYear: number
   isValidYear: typeof isValidYear
@@ -80,6 +72,19 @@ export function useVehicleList(): VehicleListState {
 
   const route = useRoute()
   const router = useRouter()
+
+  // Base option lists from the shared attributes store; prepend the 'all'
+  // sentinel (Reka UI forbids empty-string SelectItem values — mapped back to
+  // undefined in buildQuery).
+  const attributes = useAttributesStore()
+  const transmissionOptions: FilterOption[] = [
+    { label: 'Todas', value: ALL },
+    ...attributes.transmissionOptions,
+  ]
+  const fuelOptions: FilterOption[] = [
+    { label: 'Todos', value: ALL },
+    ...attributes.fuelOptions,
+  ]
 
   // --- Filter / search state (initialized from URL, kept in sync) ---
   const search = ref((route.query.q as string) ?? '')

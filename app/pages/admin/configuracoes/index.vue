@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ShopConfigFormState, ShopConfigUpdatePayload, PublicShopConfig } from '~/types/shop-config'
+
 definePageMeta({
   layout: 'admin',
   middleware: 'admin',
@@ -6,16 +8,60 @@ definePageMeta({
 
 useHead({ title: 'Configurações — Pherro Admin' })
 
-// TODO: useFetch('/api/admin/shop-config') + PATCH on submit.
-const state = reactive({
-  shopName: 'Pherro',
+const shop = useShopConfigStore()
+const toast = useToast()
+const saving = ref(false)
+
+const state = reactive<ShopConfigFormState>({
+  shopName: '',
   logoUrl: '',
   description: '',
   address: '',
 })
 
-function onSubmit() {
-  // TODO: PATCH /api/admin/shop-config.
+// Load current values via the public BFF route (returns exactly the form fields).
+const { data, error } = await useFetch<PublicShopConfig>('/api/shop-config', {
+  key: 'shop-config',
+})
+
+watchEffect(() => {
+  if (!data.value) return
+  state.shopName = data.value.shopName ?? ''
+  state.logoUrl = data.value.logoUrl ?? ''
+  state.description = data.value.description ?? ''
+  state.address = data.value.address ?? ''
+})
+
+if (error.value) {
+  toast.add({ title: 'Erro ao carregar configurações', color: 'error' })
+}
+
+// Empty optional strings → null so we don't persist "".
+const nullable = (v: string) => (v.trim() === '' ? null : v.trim())
+
+async function onSubmit() {
+  saving.value = true
+  try {
+    const payload: ShopConfigUpdatePayload = {
+      shopName: state.shopName.trim(),
+      logoUrl: nullable(state.logoUrl),
+      description: nullable(state.description),
+      address: nullable(state.address),
+    }
+    await $fetch('/api/admin/shop-config', { method: 'PATCH', body: payload })
+    // Keep the shared store (sidebar/header brand) in sync with the saved values.
+    shop.apply({
+      shopName: payload.shopName!,
+      logoUrl: payload.logoUrl ?? null,
+      description: payload.description ?? null,
+      address: payload.address ?? null,
+    })
+    toast.add({ title: 'Configurações salvas', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao salvar configurações', color: 'error' })
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -52,7 +98,14 @@ function onSubmit() {
         </div>
 
         <div class="flex items-center justify-end border-t border-default pt-4 mt-6">
-          <UButton type="submit" color="primary" icon="i-lucide-save" label="Salvar alterações" :ui="{ base: 'text-white' }" />
+          <UButton
+            type="submit"
+            color="primary"
+            icon="i-lucide-save"
+            label="Salvar alterações"
+            :loading="saving"
+            :ui="{ base: 'text-white' }"
+          />
         </div>
       </UForm>
     </template>

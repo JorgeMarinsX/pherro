@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// TODO: load shopName + logoUrl from ShopConfig via API once endpoint exists.
-const shopName = 'Pherro'
+const shop = useShopConfigStore()
+const { shopName, logoUrl } = storeToRefs(shop)
+// Public config — safe on the storefront. Hydrated once SSR-side.
+await callOnce('shop-config', () => shop.fetchConfig())
 
 const items = ref([
   { label: 'Início', to: '/', icon: 'i-lucide-home' },
@@ -16,7 +18,13 @@ const items = ref([
         to="/"
         class="flex items-center gap-2 text-neutral-900"
       >
-        <UIcon name="i-lucide-car-front" class="size-7 text-primary-600" />
+        <img
+          v-if="logoUrl"
+          :src="logoUrl"
+          :alt="shopName"
+          class="size-7 shrink-0 object-contain"
+        >
+        <UIcon v-else name="i-lucide-car-front" class="size-7 text-primary-600" />
         <span class="text-xl font-extrabold tracking-tight">{{ shopName }}</span>
       </NuxtLink>
 
