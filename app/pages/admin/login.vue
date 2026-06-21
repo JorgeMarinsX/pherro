@@ -22,7 +22,10 @@ async function onSubmit() {
       method: 'POST',
       body: { email: state.email, password: state.password },
     })
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/admin'
+    // Only allow same-site internal paths — never an absolute/external URL
+    // (open-redirect / phishing guard). Must start with a single '/'.
+    const raw = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    const redirect = /^\/(?!\/)/.test(raw) ? raw : '/admin'
     await navigateTo(redirect)
   } catch (err: unknown) {
     const message =

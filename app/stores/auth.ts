@@ -26,8 +26,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => !!role.value && isAdminRole(role.value))
 
   // Hydrate from the BFF /api/auth/me (reads the sealed cookie SSR-side).
+  // useRequestFetch forwards the incoming request cookies during SSR — plain
+  // $fetch does NOT, so the session cookie would be dropped and every reload
+  // would read as logged-out.
   async function fetchMe() {
-    const me = await $fetch<MeResponse>('/api/auth/me')
+    const request = useRequestFetch()
+    const me = await request<MeResponse>('/api/auth/me')
     if (me.authenticated) {
       email.value = me.email ?? null
       role.value = me.role ?? null
