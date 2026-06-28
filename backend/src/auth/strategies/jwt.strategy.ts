@@ -2,15 +2,16 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
-import { PrismaService } from '../../prisma/prisma.service'
-import { SUPERUSER } from '../roles'
+import { TenantContext } from '../../tenant/tenant-context'
+import { UsersService } from '../../users/users.service'
+import { PLATFORM_ADMIN } from '../roles'
 import type { AuthUser, JwtPayload } from '../types'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
   ) {
     const secret = config.get<string>('JWT_SECRET')
     if (!secret) throw new Error('JWT_SECRET not configured')
@@ -25,21 +26,39 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (payload.typ === 'refresh') {
       throw new UnauthorizedException('Refresh token not accepted here')
     }
-    if (payload.sub === 'env-admin') {
+
+    if (payload.role === PLATFORM_ADMIN) {
+      const admin = await this.users.findPlatformAdminById(payload.sub)
+      if (!admin || !admin.isActive) throw new UnauthorizedException()
+      TenantContext.setPlatformAdmin(true)
+      TenantContext.setTenantId(null)
       return {
-        sub: 'env-admin',
-        email: payload.email,
-        role: SUPERUSER,
-        isEnvAdmin: true,
+        sub: admin.id,
+        email: admin.email,
+        role: PLATFORM_ADMIN,
+        tenantId: null,
+        isPlatformAdmin: true,
       }
     }
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } })
-    if (!user || !user.isActive) throw new UnauthorizedException()
+
+    // Reject token replay onto another tenant's host.
+    const hostTenant = TenantContext.tenantId()
+    if (!payload.tenantId || (hostTenant && hostTenant !== payload.tenantId)) {
+      throw new UnauthorizedException()
+    }
+
+    const user = await this.users.findByIdInTenant(payload.sub, payload.tenantId)
+    if (!user || !user.isActive || user.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException()
+    }
+
+    TenantContext.setTenantId(payload.tenantId)
     return {
       sub: user.id,
       email: user.email,
       role: user.role as AuthUser['role'],
-      isEnvAdmin: false,
+      tenantId: user.tenantId,
+      isPlatformAdmin: false,
     }
   }
 }

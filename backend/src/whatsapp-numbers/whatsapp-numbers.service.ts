@@ -9,14 +9,16 @@ import { Prisma } from '@prisma/client'
 import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
+import { TenantContext } from '../tenant/tenant-context'
 import { CreateWhatsappNumberDto } from './dto/create-whatsapp-number.dto'
 import { UpdateWhatsappNumberDto } from './dto/update-whatsapp-number.dto'
 import { WhatsappNumberDto } from './dto/whatsapp-number.dto'
 
-const LIST_KEY = 'whatsapp:list'
-const ACTIVE_KEY = 'whatsapp:active'
+const tp = () => `t:${TenantContext.tenantId() ?? 'none'}:`
+const listKey = () => `${tp()}whatsapp:list`
+const activeKey = () => `${tp()}whatsapp:active`
 // ShopConfig nests whatsappNumbers — bust it too on any mutation.
-const SHOP_CONFIG_KEY = 'shop-config:current'
+const shopConfigKey = () => `${tp()}shop-config:current`
 const TTL_MS = 60_000
 
 @Injectable()
@@ -27,39 +29,39 @@ export class WhatsappNumbersService {
   ) {}
 
   async list(): Promise<WhatsappNumberDto[]> {
-    const cached = await this.cache.get<WhatsappNumberDto[]>(LIST_KEY)
+    const cached = await this.cache.get<WhatsappNumberDto[]>(listKey())
     if (cached) return cached
 
-    const rows = await this.prisma.whatsappNumber.findMany({
+    const rows = await this.prisma.scoped.whatsappNumber.findMany({
       orderBy: { createdAt: 'asc' },
     })
     const dto = plainToInstance(WhatsappNumberDto, rows, { excludeExtraneousValues: true })
-    await this.cache.set(LIST_KEY, dto, TTL_MS)
+    await this.cache.set(listKey(), dto, TTL_MS)
     return dto
   }
 
   // Single source of truth for the storefront WhatsApp URL helper.
   async getActive(): Promise<WhatsappNumberDto | null> {
-    const cached = await this.cache.get<WhatsappNumberDto | null>(ACTIVE_KEY)
+    const cached = await this.cache.get<WhatsappNumberDto | null>(activeKey())
     if (cached !== undefined) return cached
 
-    const row = await this.prisma.whatsappNumber.findFirst({ where: { isActive: true } })
+    const row = await this.prisma.scoped.whatsappNumber.findFirst({ where: { isActive: true } })
     const dto = row
       ? plainToInstance(WhatsappNumberDto, row, { excludeExtraneousValues: true })
       : null
-    await this.cache.set(ACTIVE_KEY, dto, TTL_MS)
+    await this.cache.set(activeKey(), dto, TTL_MS)
     return dto
   }
 
   async create(dto: CreateWhatsappNumberDto): Promise<WhatsappNumberDto> {
-    const shop = await this.prisma.shopConfig.findFirst({ select: { id: true } })
+    const shop = await this.prisma.scoped.shopConfig.findFirst({ select: { id: true } })
     if (!shop) throw new NotFoundException('ShopConfig not seeded.')
 
-    const count = await this.prisma.whatsappNumber.count({ where: { shopConfigId: shop.id } })
+    const count = await this.prisma.scoped.whatsappNumber.count({ where: { shopConfigId: shop.id } })
     // First-ever number is auto-active; otherwise honor explicit isActive flag.
     const makeActive = count === 0 || dto.isActive === true
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.runInTenantTx(async (tx) => {
       if (makeActive) {
         await tx.whatsappNumber.updateMany({
           where: { shopConfigId: shop.id, isActive: true },
@@ -82,7 +84,7 @@ export class WhatsappNumbersService {
   }
 
   async update(id: string, dto: UpdateWhatsappNumberDto): Promise<WhatsappNumberDto> {
-    const existing = await this.prisma.whatsappNumber.findUnique({
+    const existing = await this.prisma.scoped.whatsappNumber.findFirst({
       where: { id },
       select: { id: true, shopConfigId: true },
     })
@@ -93,7 +95,7 @@ export class WhatsappNumbersService {
     if (dto.description !== undefined) data.description = dto.description ?? null
     if (dto.number !== undefined) data.number = dto.number
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.runInTenantTx(async (tx) => {
       // Setting active here enforces single-active: unset siblings first.
       if (dto.isActive === true) {
         await tx.whatsappNumber.updateMany({
@@ -102,8 +104,6 @@ export class WhatsappNumbersService {
         })
         data.isActive = true
       } else if (dto.isActive === false) {
-        // Refuse to leave the shop with zero active numbers via a plain patch.
-        // Use activate(otherId) to switch the active number instead.
         throw new BadRequestException(
           'Não é possível desativar diretamente. Defina outro número como ativo.',
         )
@@ -116,26 +116,26 @@ export class WhatsappNumbersService {
   }
 
   async activate(id: string): Promise<WhatsappNumberDto> {
-    const existing = await this.prisma.whatsappNumber.findUnique({
+    const existing = await this.prisma.scoped.whatsappNumber.findFirst({
       where: { id },
       select: { id: true, shopConfigId: true },
     })
     if (!existing) throw new NotFoundException(`WhatsappNumber ${id} not found.`)
 
-    const [, activated] = await this.prisma.$transaction([
-      this.prisma.whatsappNumber.updateMany({
+    const activated = await this.prisma.runInTenantTx(async (tx) => {
+      await tx.whatsappNumber.updateMany({
         where: { shopConfigId: existing.shopConfigId, isActive: true, id: { not: id } },
         data: { isActive: false },
-      }),
-      this.prisma.whatsappNumber.update({ where: { id }, data: { isActive: true } }),
-    ])
+      })
+      return tx.whatsappNumber.update({ where: { id }, data: { isActive: true } })
+    })
 
     await this.invalidate()
     return plainToInstance(WhatsappNumberDto, activated, { excludeExtraneousValues: true })
   }
 
   async remove(id: string): Promise<{ ok: true }> {
-    const existing = await this.prisma.whatsappNumber.findUnique({
+    const existing = await this.prisma.scoped.whatsappNumber.findFirst({
       where: { id },
       select: { id: true, isActive: true },
     })
@@ -148,16 +148,16 @@ export class WhatsappNumbersService {
       )
     }
 
-    await this.prisma.whatsappNumber.delete({ where: { id } })
+    await this.prisma.scoped.whatsappNumber.delete({ where: { id } })
     await this.invalidate()
     return { ok: true }
   }
 
   private async invalidate() {
     await Promise.all([
-      this.cache.del(LIST_KEY),
-      this.cache.del(ACTIVE_KEY),
-      this.cache.del(SHOP_CONFIG_KEY),
+      this.cache.del(listKey()),
+      this.cache.del(activeKey()),
+      this.cache.del(shopConfigKey()),
     ])
   }
 }

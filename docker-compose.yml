@@ -55,10 +55,13 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}?schema=public
       TENANT_SLUG: ${TENANT_SLUG:-dev}
+      APP_BASE_DOMAIN: ${APP_BASE_DOMAIN:-pherro.app}
       BACKEND_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD}
+      TENANT_ADMIN_EMAIL: ${TENANT_ADMIN_EMAIL}
+      TENANT_ADMIN_PASSWORD: ${TENANT_ADMIN_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
@@ -72,6 +75,7 @@ services:
         bun install &&
         bunx prisma generate &&
         bunx prisma migrate deploy &&
+        bun run prisma/seed.ts &&
         bun --bun --watch run src/main.ts
       "
 

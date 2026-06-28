@@ -1,81 +1,52 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import * as argon2 from 'argon2'
+import { TenantContext } from '../tenant/tenant-context'
 import { UsersService } from '../users/users.service'
-import { SUPERUSER } from './roles'
 import type { AuthUser, JwtPayload } from './types'
+import { isPlatformAdminRole } from './roles'
 
-// Dummy hash used for timing-safety on unknown emails.
-// Real argon2id hash of "dummy-password" — verify always fails but costs same as real.
+// Real argon2id hash of "dummy-password" — verify always fails, same cost as real.
 const DUMMY_HASH =
   '$argon2id$v=19$m=65536,t=3,p=4$ZG93bnRpbWUtaXMtZmluZQ$Vw5w6PuKzKuNlhmW+I9c5wT5pIH8e1SqxArvuQHKa1c'
 
-type EnvAdmin = { email: string; hash: string } | null
-
 @Injectable()
-export class AuthService implements OnModuleInit {
-  private readonly logger = new Logger(AuthService.name)
-  private envAdmin: EnvAdmin = null
-
+export class AuthService {
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
     private readonly users: UsersService,
   ) {}
 
-  async onModuleInit(): Promise<void> {
-    const email = this.config.get<string>('ADMIN_EMAIL')
-    const pw = this.config.get<string>('ADMIN_PASSWORD')
-    if (email && pw) {
-      this.envAdmin = {
-        email: email.toLowerCase(),
-        hash: await UsersService.hash(pw),
-      }
-      this.logger.log(`Env superuser registered: ${email}`)
-    } else {
-      this.logger.warn('No env superuser (ADMIN_EMAIL/ADMIN_PASSWORD unset)')
-    }
-  }
-
+  // Tenant resolved from the host (TenantContext, set by middleware).
+  // Null tenant = platform host → only a PLATFORM_ADMIN may log in there.
   async validateUser(email: string, password: string): Promise<AuthUser | null> {
     const normalized = email.toLowerCase()
+    const tenantId = TenantContext.tenantId()
 
-    if (this.envAdmin && normalized === this.envAdmin.email) {
-      const ok = await argon2.verify(this.envAdmin.hash, password).catch(() => false)
-      if (!ok) return null
-      return {
-        sub: 'env-admin',
-        email: normalized,
-        role: SUPERUSER,
-        isEnvAdmin: true,
-      }
-    }
+    const user = tenantId
+      ? await this.users.findByEmailInTenant(normalized, tenantId)
+      : await this.users.findPlatformAdminByEmail(normalized)
 
-    const user = await this.users.findByEmail(normalized)
     if (!user || !user.isActive) {
-      // Constant-time: still run verify to avoid timing leak.
       await argon2.verify(DUMMY_HASH, password).catch(() => false)
       return null
     }
     const ok = await UsersService.verify(user.passwordHash, password)
     if (!ok) return null
-    void this.users.touchLastLogin(user.id)
-    return {
-      sub: user.id,
-      email: user.email,
-      role: user.role as AuthUser['role'],
-      isEnvAdmin: false,
-    }
+    if (user.tenantId) void this.users.touchLastLogin(user.id, user.tenantId)
+    else void this.users.touchPlatformAdminLastLogin(user.id)
+    return this.toAuthUser(user)
   }
 
   async issueTokens(user: AuthUser) {
-    const payload: JwtPayload = { sub: user.sub, email: user.email, role: user.role }
+    const payload: JwtPayload = {
+      sub: user.sub,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    }
     const accessTtl = this.config.get<string>('JWT_ACCESS_TTL') ?? '15m'
     const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL') ?? '7d'
     const [accessToken, refreshToken] = await Promise.all([
@@ -96,27 +67,28 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Token não é refresh')
     }
 
-    if (payload.sub === 'env-admin') {
-      if (!this.envAdmin || payload.email !== this.envAdmin.email) {
-        throw new UnauthorizedException()
-      }
-      return this.issueTokens({
-        sub: 'env-admin',
-        email: this.envAdmin.email,
-        role: SUPERUSER,
-        isEnvAdmin: true,
-      })
-    }
+    const user = isPlatformAdminRole(payload.role)
+      ? await this.users.findPlatformAdminById(payload.sub)
+      : await this.users.findByIdInTenant(payload.sub, payload.tenantId)
 
-    const user = await this.users.findByEmail(payload.email)
-    if (!user || !user.isActive || user.id !== payload.sub) {
+    if (!user || !user.isActive || user.tenantId !== payload.tenantId) {
       throw new UnauthorizedException()
     }
-    return this.issueTokens({
+    return this.issueTokens(this.toAuthUser(user))
+  }
+
+  private toAuthUser(user: {
+    id: string
+    email: string
+    role: AuthUser['role']
+    tenantId: string | null
+  }): AuthUser {
+    return {
       sub: user.id,
       email: user.email,
-      role: user.role as AuthUser['role'],
-      isEnvAdmin: false,
-    })
+      role: user.role,
+      tenantId: user.tenantId,
+      isPlatformAdmin: isPlatformAdminRole(user.role),
+    }
   }
 }

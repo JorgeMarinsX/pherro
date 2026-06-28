@@ -4,9 +4,6 @@ CREATE TYPE "DomainStatus" AS ENUM ('NONE', 'PENDING', 'VERIFIED', 'ACTIVE');
 -- CreateEnum
 CREATE TYPE "TenantStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
 
--- AlterEnum
-ALTER TYPE "UserRole" ADD VALUE 'PLATFORM_ADMIN';
-
 -- DropIndex
 DROP INDEX "AttributeDefinition_slug_key";
 
@@ -90,6 +87,23 @@ CREATE UNIQUE INDEX "Tenant_slug_key" ON "Tenant"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tenant_customDomain_key" ON "Tenant"("customDomain");
+
+-- CreateTable
+-- Platform-level operators: no tenantId, no RLS (like Tenant).
+CREATE TABLE "PlatformAdmin" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastLoginAt" TIMESTAMP(3),
+
+    CONSTRAINT "PlatformAdmin_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PlatformAdmin_email_key" ON "PlatformAdmin"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AttributeDefinition_tenantId_slug_key" ON "AttributeDefinition"("tenantId", "slug");

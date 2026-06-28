@@ -10,11 +10,12 @@ import { AttributeType, Prisma } from '@prisma/client'
 import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
+import { TenantContext } from '../tenant/tenant-context'
 import { AttributeDto } from './dto/attribute.dto'
 import { CreateAttributeDto } from './dto/create-attribute.dto'
 import { UpdateAttributeDto } from './dto/update-attribute.dto'
 
-const LIST_KEY = 'attributes:list'
+const listKey = () => `t:${TenantContext.tenantId() ?? 'none'}:attributes:list`
 const TTL_MS = 60_000
 
 @Injectable()
@@ -25,21 +26,21 @@ export class AttributesService {
   ) {}
 
   async list(): Promise<AttributeDto[]> {
-    const cached = await this.cache.get<AttributeDto[]>(LIST_KEY)
+    const cached = await this.cache.get<AttributeDto[]>(listKey())
     if (cached) return cached
 
-    const rows = await this.prisma.attributeDefinition.findMany({
+    const rows = await this.prisma.scoped.attributeDefinition.findMany({
       orderBy: { name: 'asc' },
     })
     const dto = plainToInstance(AttributeDto, rows, { excludeExtraneousValues: true })
-    await this.cache.set(LIST_KEY, dto, TTL_MS)
+    await this.cache.set(listKey(), dto, TTL_MS)
     return dto
   }
 
   async create(dto: CreateAttributeDto): Promise<AttributeDto> {
     this.assertEnumOptions(dto.type, dto.options)
     try {
-      const created = await this.prisma.attributeDefinition.create({
+      const created = await this.prisma.scoped.attributeDefinition.create({
         data: {
           name: dto.name,
           slug: dto.slug,
@@ -56,7 +57,7 @@ export class AttributesService {
   }
 
   async update(id: string, dto: UpdateAttributeDto): Promise<AttributeDto> {
-    const existing = await this.prisma.attributeDefinition.findUnique({
+    const existing = await this.prisma.scoped.attributeDefinition.findFirst({
       where: { id },
       select: { type: true },
     })
@@ -75,7 +76,7 @@ export class AttributesService {
     if (dto.options !== undefined) data.options = dto.options ?? Prisma.JsonNull
 
     try {
-      const updated = await this.prisma.attributeDefinition.update({ where: { id }, data })
+      const updated = await this.prisma.scoped.attributeDefinition.update({ where: { id }, data })
       await this.invalidate()
       return plainToInstance(AttributeDto, updated, { excludeExtraneousValues: true })
     } catch (e) {
@@ -84,18 +85,18 @@ export class AttributesService {
   }
 
   async remove(id: string): Promise<{ ok: true }> {
-    const existing = await this.prisma.attributeDefinition.findUnique({
+    const existing = await this.prisma.scoped.attributeDefinition.findFirst({
       where: { id },
       select: { id: true },
     })
     if (!existing) throw new NotFoundException(`Attribute ${id} not found.`)
 
-    const inUse = await this.prisma.vehicleAttribute.count({
+    const inUse = await this.prisma.scoped.vehicleAttribute.count({
       where: { attributeDefinitionId: id },
     })
     if (inUse > 0) throw new BadRequestException('Atributo em uso por veículos.')
 
-    await this.prisma.attributeDefinition.delete({ where: { id } })
+    await this.prisma.scoped.attributeDefinition.delete({ where: { id } })
     await this.invalidate()
     return { ok: true }
   }
@@ -114,6 +115,6 @@ export class AttributesService {
   }
 
   private async invalidate() {
-    await this.cache.del(LIST_KEY)
+    await this.cache.del(listKey())
   }
 }

@@ -40,6 +40,10 @@ export const tenantExtension = Prisma.defineExtension((client) =>
             injectData(a.update, tenantId)
           }
 
+          // Inside runInTenantTx the GUC is already bound by the outer tx —
+          // wrapping again would nest-throw. Just run the (injected) query.
+          if (TenantContext.inTenantTx()) return query(a)
+
           // RLS backstop: bind app.current_tenant to this query's transaction.
           // Covers findUnique/update/delete/upsert where tenantId can't go in `where`.
           const [, result] = (await (client as any).$transaction([

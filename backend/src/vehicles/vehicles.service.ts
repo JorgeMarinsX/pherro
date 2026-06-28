@@ -13,9 +13,11 @@ import {
 import { UpdateVehicleDto } from './dto/update-vehicle.dto'
 import { VehicleDetailDto, VehicleListItemDto } from './dto/vehicle.dto'
 import { buildVehicleSlug } from './slug.util'
+import { TenantContext } from '../tenant/tenant-context'
 
-const cacheKey = (id: string) => `vehicle:${id}`
-const slugCacheKey = (slug: string) => `vehicle:slug:${slug}`
+const tPrefix = () => `t:${TenantContext.tenantId() ?? 'none'}:`
+const cacheKey = (id: string) => `${tPrefix()}vehicle:${id}`
+const slugCacheKey = (slug: string) => `${tPrefix()}vehicle:slug:${slug}`
 const VEHICLE_TTL_MS = 60_000
 const SLUG_MAX_RETRIES = 5
 
@@ -69,8 +71,8 @@ export class VehiclesService {
     const take = q.take ?? 24
     const skip = q.skip ?? 0
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.vehicle.findMany({
+    const [items, total] = await Promise.all([
+      this.prisma.scoped.vehicle.findMany({
         where,
         orderBy,
         take,
@@ -85,7 +87,7 @@ export class VehiclesService {
           },
         },
       }),
-      this.prisma.vehicle.count({ where }),
+      this.prisma.scoped.vehicle.count({ where }),
     ])
 
     const dtoItems = plainToInstance(VehicleListItemDto, items, { excludeExtraneousValues: true })
@@ -108,7 +110,7 @@ export class VehiclesService {
       return cached
     }
 
-    const v = await this.prisma.vehicle.findUnique({
+    const v = await this.prisma.scoped.vehicle.findFirst({
       where: { id },
       include: {
         photos: { orderBy: { position: 'asc' } },
@@ -144,7 +146,7 @@ export class VehiclesService {
       return cached
     }
 
-    const v = await this.prisma.vehicle.findUnique({
+    const v = await this.prisma.scoped.vehicle.findFirst({
       where: { slug },
       include: {
         photos: { orderBy: { position: 'asc' } },
@@ -178,7 +180,7 @@ export class VehiclesService {
     for (let attempt = 0; attempt < SLUG_MAX_RETRIES; attempt++) {
       const slug = buildVehicleSlug(dto.make, dto.model, dto.year)
       try {
-        const created = await this.prisma.vehicle.create({
+        const created = await this.prisma.scoped.vehicle.create({
           data: {
             slug,
             make: dto.make,
@@ -239,7 +241,7 @@ export class VehiclesService {
   }
 
   async update(id: string, dto: UpdateVehicleDto): Promise<VehicleDetailDto> {
-    const exists = await this.prisma.vehicle.findUnique({
+    const exists = await this.prisma.scoped.vehicle.findFirst({
       where: { id },
       select: { id: true, slug: true },
     })
@@ -247,7 +249,7 @@ export class VehiclesService {
 
     const { photos, attributes, ...scalar } = dto
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await this.prisma.runInTenantTx(async (tx) => {
       await tx.vehicle.update({ where: { id }, data: scalar })
 
       if (photos) {
@@ -279,12 +281,12 @@ export class VehiclesService {
   }
 
   async remove(id: string) {
-    const exists = await this.prisma.vehicle.findUnique({
+    const exists = await this.prisma.scoped.vehicle.findFirst({
       where: { id },
       select: { id: true, slug: true },
     })
     if (!exists) throw new NotFoundException(`Vehicle ${id} not found.`)
-    await this.prisma.vehicle.delete({ where: { id } })
+    await this.prisma.scoped.vehicle.delete({ where: { id } })
     await this.cache.del(cacheKey(id))
     await this.cache.del(slugCacheKey(exists.slug))
     return { ok: true }

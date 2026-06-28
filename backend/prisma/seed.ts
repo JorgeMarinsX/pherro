@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client'
+import * as argon2 from 'argon2'
 
 const prisma = new PrismaClient()
+
+const ARGON_OPTS = {
+  type: argon2.argon2id,
+  memoryCost: 65536,
+  timeCost: 3,
+  parallelism: 4,
+} as const
+const hash = (pw: string) => argon2.hash(pw, ARGON_OPTS)
 
 function kebab(input: string): string {
   return input
@@ -140,9 +149,39 @@ async function main() {
     (await prisma.tenant.create({ data: { slug, name: slug } }))
   console.log(`[seed] Tenant '${slug}' (${tenant.id}).`)
 
+  // Platform admin (cross-tenant operator). Unscoped table, no RLS.
+  const paEmail = process.env.PLATFORM_ADMIN_EMAIL?.toLowerCase()
+  const paPw = process.env.PLATFORM_ADMIN_PASSWORD
+  if (paEmail && paPw) {
+    const existing = await prisma.platformAdmin.findUnique({ where: { email: paEmail } })
+    if (!existing) {
+      await prisma.platformAdmin.create({
+        data: { email: paEmail, passwordHash: await hash(paPw) },
+      })
+      console.log(`[seed] PlatformAdmin '${paEmail}' created.`)
+    }
+  } else {
+    console.warn('[seed] No PLATFORM_ADMIN_EMAIL/PASSWORD — skipping platform admin.')
+  }
+
   // All owned rows live behind RLS: bind the GUC for this transaction, then write.
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenant.id}, true)`
+
+    // Per-tenant admin user (replaces the removed env superuser).
+    const taEmail = process.env.TENANT_ADMIN_EMAIL?.toLowerCase()
+    const taPw = process.env.TENANT_ADMIN_PASSWORD
+    if (taEmail && taPw) {
+      const existing = await tx.user.findFirst({ where: { email: taEmail } })
+      if (!existing) {
+        await tx.user.create({
+          data: { tenantId: tenant.id, email: taEmail, passwordHash: await hash(taPw), role: 'ADMIN' },
+        })
+        console.log(`[seed] Tenant admin '${taEmail}' created.`)
+      }
+    } else {
+      console.warn('[seed] No TENANT_ADMIN_EMAIL/PASSWORD — skipping tenant admin.')
+    }
 
     let shop = await tx.shopConfig.findFirst()
     if (!shop) {

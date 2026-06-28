@@ -12,7 +12,7 @@ export class TenantMiddleware implements NestMiddleware {
 
   async use(req: Req, _res: unknown, next: () => void): Promise<void> {
     const tenantId = await this.resolve(req)
-    TenantContext.run({ tenantId, isPlatformAdmin: false }, () => next())
+    TenantContext.run({ tenantId, isPlatformAdmin: false, inTenantTx: false }, () => next())
   }
 
   private async resolve(req: Req): Promise<string | null> {

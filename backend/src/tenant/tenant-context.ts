@@ -3,6 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 export type TenantStore = {
   tenantId: string | null
   isPlatformAdmin: boolean
+  // GUC already bound to an outer tx → extension skips its per-op tx wrap.
+  inTenantTx: boolean
 }
 
 const als = new AsyncLocalStorage<TenantStore>()
@@ -24,6 +26,10 @@ export const TenantContext = {
     return als.getStore()?.isPlatformAdmin ?? false
   },
 
+  inTenantTx(): boolean {
+    return als.getStore()?.inTenantTx ?? false
+  },
+
   setTenantId(tenantId: string | null): void {
     const s = als.getStore()
     if (s) s.tenantId = tenantId
@@ -32,5 +38,10 @@ export const TenantContext = {
   setPlatformAdmin(value: boolean): void {
     const s = als.getStore()
     if (s) s.isPlatformAdmin = value
+  },
+
+  setInTenantTx(value: boolean): void {
+    const s = als.getStore()
+    if (s) s.inTenantTx = value
   },
 }

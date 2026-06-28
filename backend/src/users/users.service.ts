@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import * as argon2 from 'argon2'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
@@ -31,12 +32,14 @@ export class UsersService {
     return argon2.verify(hash, pw, ARGON_OPTS).catch(() => false)
   }
 
+  // CRUD runs through the scoped client: tenantId is auto-injected from the
+  // JWT-bound TenantContext, so email uniqueness/lookups are per-tenant.
   async create(dto: CreateUserDto): Promise<UserDto> {
     const email = dto.email.toLowerCase()
-    const exists = await this.prisma.user.findUnique({ where: { email } })
+    const exists = await this.prisma.scoped.user.findFirst({ where: { email } })
     if (exists) throw new ConflictException('E-mail já cadastrado')
     const passwordHash = await UsersService.hash(dto.password)
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.scoped.user.create({
       data: {
         email,
         passwordHash,
@@ -48,27 +51,78 @@ export class UsersService {
   }
 
   async list(): Promise<UserDto[]> {
-    const users = await this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } })
+    const users = await this.prisma.scoped.user.findMany({ orderBy: { createdAt: 'desc' } })
     return users.map((u) => plainToInstance(UserDto, u, { excludeExtraneousValues: true }))
   }
 
   async findOne(id: string): Promise<UserDto> {
-    const user = await this.prisma.user.findUnique({ where: { id } })
+    const user = await this.prisma.scoped.user.findFirst({ where: { id } })
     if (!user) throw new NotFoundException()
     return plainToInstance(UserDto, user, { excludeExtraneousValues: true })
   }
 
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email: email.toLowerCase() } })
+  // Auth lookups: tenant User reads bypass the request-scoped extension (login
+  // runs before tenant scoping is bound), so set the RLS GUC explicitly per tx.
+  async findByEmailInTenant(email: string, tenantId: string) {
+    return this.inTenant(tenantId, (tx) =>
+      tx.user.findUnique({
+        where: { tenantId_email: { tenantId, email: email.toLowerCase() } },
+      }),
+    )
+  }
+
+  async findByIdInTenant(id: string, tenantId: string | null) {
+    if (!tenantId) return null
+    return this.inTenant(tenantId, (tx) =>
+      tx.user.findFirst({ where: { id, tenantId } }),
+    )
+  }
+
+  async findPlatformAdminByEmail(email: string) {
+    const a = await this.prisma.platformAdmin.findUnique({
+      where: { email: email.toLowerCase() },
+    })
+    return a ? this.asPlatformUser(a) : null
+  }
+
+  async findPlatformAdminById(id: string) {
+    const a = await this.prisma.platformAdmin.findUnique({ where: { id } })
+    return a ? this.asPlatformUser(a) : null
+  }
+
+  private asPlatformUser(a: {
+    id: string
+    email: string
+    passwordHash: string
+    isActive: boolean
+  }) {
+    return {
+      id: a.id,
+      email: a.email,
+      passwordHash: a.passwordHash,
+      isActive: a.isActive,
+      role: 'PLATFORM_ADMIN' as const,
+      tenantId: null,
+    }
+  }
+
+  private async inTenant<T>(
+    tenantId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`
+      return fn(tx)
+    })
   }
 
   async update(id: string, dto: UpdateUserDto): Promise<UserDto> {
-    const existing = await this.prisma.user.findUnique({ where: { id } })
+    const existing = await this.prisma.scoped.user.findFirst({ where: { id } })
     if (!existing) throw new NotFoundException()
 
     const data: Record<string, unknown> = {}
     if (dto.email && dto.email.toLowerCase() !== existing.email) {
-      const clash = await this.prisma.user.findUnique({
+      const clash = await this.prisma.scoped.user.findFirst({
         where: { email: dto.email.toLowerCase() },
       })
       if (clash) throw new ConflictException('E-mail já cadastrado')
@@ -82,18 +136,25 @@ export class UsersService {
       throw new BadRequestException('Nada para atualizar')
     }
 
-    const user = await this.prisma.user.update({ where: { id }, data })
+    const user = await this.prisma.scoped.user.update({ where: { id }, data })
     return plainToInstance(UserDto, user, { excludeExtraneousValues: true })
   }
 
   async remove(id: string): Promise<void> {
-    const existing = await this.prisma.user.findUnique({ where: { id } })
+    const existing = await this.prisma.scoped.user.findFirst({ where: { id } })
     if (!existing) throw new NotFoundException()
-    await this.prisma.user.delete({ where: { id } })
+    await this.prisma.scoped.user.delete({ where: { id } })
   }
 
-  async touchLastLogin(id: string): Promise<void> {
-    await this.prisma.user
+  // Tenant user: GUC set explicitly (login predates scoping). Best-effort.
+  async touchLastLogin(id: string, tenantId: string): Promise<void> {
+    await this.inTenant(tenantId, (tx) =>
+      tx.user.update({ where: { id }, data: { lastLoginAt: new Date() } }),
+    ).catch(() => {})
+  }
+
+  async touchPlatformAdminLastLogin(id: string): Promise<void> {
+    await this.prisma.platformAdmin
       .update({ where: { id }, data: { lastLoginAt: new Date() } })
       .catch(() => {})
   }

@@ -11,7 +11,7 @@ export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateLeadDto): Promise<LeadDto> {
-    const lead = await this.prisma.lead.create({
+    const lead = await this.prisma.scoped.lead.create({
       data: {
         name: dto.name,
         phone: dto.phone,
@@ -45,15 +45,15 @@ export class LeadsService {
     const take = q.take ?? 50
     const skip = q.skip ?? 0
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.lead.findMany({
+    const [items, total] = await Promise.all([
+      this.prisma.scoped.lead.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take,
         skip,
         include: { vehicleInterests: true },
       }),
-      this.prisma.lead.count({ where }),
+      this.prisma.scoped.lead.count({ where }),
     ])
 
     return {
@@ -65,7 +65,7 @@ export class LeadsService {
   }
 
   async findOne(id: string): Promise<LeadDto> {
-    const lead = await this.prisma.lead.findUnique({
+    const lead = await this.prisma.scoped.lead.findFirst({
       where: { id },
       include: { vehicleInterests: true },
     })

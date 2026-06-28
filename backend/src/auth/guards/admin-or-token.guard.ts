@@ -8,7 +8,8 @@ import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import { timingSafeEqual } from 'node:crypto'
 import { ROLES_KEY } from '../decorators/roles.decorator'
-import { ADMIN_ROLES, SUPERUSER, type AuthRole } from '../roles'
+import { ADMIN_ROLES, type AuthRole } from '../roles'
+import { TenantContext } from '../../tenant/tenant-context'
 import type { AuthUser } from '../types'
 
 @Injectable()
@@ -40,11 +41,14 @@ export class AdminOrTokenGuard implements CanActivate {
       provided.length === expected.length &&
       timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
     ) {
+      // S2S token authenticates the caller as a tenant admin; it does NOT bypass
+      // tenant scoping — the tenant stays whatever the middleware resolved.
       req.user = {
         sub: 'service-token',
         email: 'service@internal',
-        role: SUPERUSER,
-        isEnvAdmin: false,
+        role: 'ADMIN',
+        tenantId: TenantContext.tenantId(),
+        isPlatformAdmin: false,
       }
       return true
     }
