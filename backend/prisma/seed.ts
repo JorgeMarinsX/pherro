@@ -2,7 +2,6 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Kebab slug helper — must match backend/src/vehicles/slug.util.ts logic.
 function kebab(input: string): string {
   return input
     .normalize('NFD')
@@ -133,66 +132,70 @@ const VEHICLES: SeedVehicle[] = [
 ]
 
 async function main() {
-  // ---------- ShopConfig ----------
-  const shopName = process.env.TENANT_SLUG ?? 'dev'
-  let shop = await prisma.shopConfig.findFirst()
-  if (!shop) {
-    shop = await prisma.shopConfig.create({ data: { shopName } })
-    console.log(`[seed] ShopConfig created (shopName='${shopName}').`)
-  } else {
-    console.log(`[seed] ShopConfig exists, skipping.`)
-  }
+  const slug = process.env.TENANT_SLUG ?? 'dev'
 
-  // ---------- WhatsappNumber ----------
-  let whatsapp = await prisma.whatsappNumber.findFirst({
-    where: { shopConfigId: shop.id },
-  })
-  if (!whatsapp) {
-    whatsapp = await prisma.whatsappNumber.create({
-      data: {
-        label: 'Vendas',
-        number: '+5511999999999',
-        isActive: true,
-        shopConfigId: shop.id,
-      },
-    })
-    console.log(`[seed] WhatsappNumber created (${whatsapp.number}).`)
-  } else {
-    console.log(`[seed] WhatsappNumber exists, skipping.`)
-  }
+  // Tenant is unscoped (no RLS) — create/find it on the bare client.
+  const tenant =
+    (await prisma.tenant.findUnique({ where: { slug } })) ??
+    (await prisma.tenant.create({ data: { slug, name: slug } }))
+  console.log(`[seed] Tenant '${slug}' (${tenant.id}).`)
 
-  // ---------- Vehicles ----------
-  let createdCount = 0
-  let skippedCount = 0
+  // All owned rows live behind RLS: bind the GUC for this transaction, then write.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenant.id}, true)`
 
-  for (const v of VEHICLES) {
-    const slug = slugFor(v.make, v.model, v.year, v.salt)
-    const existing = await prisma.vehicle.findUnique({ where: { slug } })
-    if (existing) {
-      skippedCount++
-      continue
+    let shop = await tx.shopConfig.findFirst()
+    if (!shop) {
+      shop = await tx.shopConfig.create({ data: { tenantId: tenant.id, shopName: slug } })
+      console.log(`[seed] ShopConfig created.`)
     }
-    await prisma.vehicle.create({
-      data: {
-        slug,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        price: v.price,
-        mileage: v.mileage,
-        color: v.color,
-        description: v.description,
-        transmission: v.transmission,
-        fuelType: v.fuelType,
-        whatsappNumberId: whatsapp.id,
-        photos: {
-          create: v.photos.map((url, i) => ({ url, position: i })),
+
+    let whatsapp = await tx.whatsappNumber.findFirst({ where: { shopConfigId: shop.id } })
+    if (!whatsapp) {
+      whatsapp = await tx.whatsappNumber.create({
+        data: {
+          tenantId: tenant.id,
+          label: 'Vendas',
+          number: '+5511999999999',
+          isActive: true,
+          shopConfigId: shop.id,
         },
-      },
-    })
-    createdCount++
-  }
-  console.log(`[seed] Vehicles: created=${createdCount}, skipped=${skippedCount}.`)
+      })
+      console.log(`[seed] WhatsappNumber created.`)
+    }
+
+    let created = 0
+    let skipped = 0
+    for (const v of VEHICLES) {
+      const vslug = slugFor(v.make, v.model, v.year, v.salt)
+      const existing = await tx.vehicle.findFirst({ where: { tenantId: tenant.id, slug: vslug } })
+      if (existing) {
+        skipped++
+        continue
+      }
+      await tx.vehicle.create({
+        data: {
+          tenantId: tenant.id,
+          slug: vslug,
+          make: v.make,
+          model: v.model,
+          year: v.year,
+          price: v.price,
+          mileage: v.mileage,
+          color: v.color,
+          description: v.description,
+          transmission: v.transmission,
+          fuelType: v.fuelType,
+          whatsappNumberId: whatsapp.id,
+          photos: {
+            create: v.photos.map((url, i) => ({ tenantId: tenant.id, url, position: i })),
+          },
+        },
+      })
+      created++
+    }
+    console.log(`[seed] Vehicles: created=${created}, skipped=${skipped}.`)
+  })
 }
 
 main()

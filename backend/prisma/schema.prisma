@@ -1,5 +1,6 @@
 // Pherro — Prisma schema. Managed migrations only (never db push).
-// Per-tenant DB: each shop instance has its own isolated Postgres.
+// Multi-tenant SaaS: ONE shared Postgres. Every owned row carries tenantId.
+// Isolation = Prisma auto-scope extension + Postgres RLS + explicit filters.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,11 +11,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---------------- Tenant ----------------
+
+model Tenant {
+  id           String       @id @default(cuid())
+  slug         String       @unique // → <slug>.pherro.app
+  name         String
+  customDomain String?      @unique // → cars.acme.com
+  domainStatus DomainStatus @default(NONE)
+  plan         String       @default("free")
+  status       TenantStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  users                User[]
+  shopConfig           ShopConfig?
+  whatsappNumbers      WhatsappNumber[]
+  vehicles             Vehicle[]
+  vehiclePhotos        VehiclePhoto[]
+  attributeDefinitions AttributeDefinition[]
+  vehicleAttributes    VehicleAttribute[]
+  leads                Lead[]
+  leadVehicleInterests LeadVehicleInterest[]
+}
+
+enum DomainStatus {
+  NONE
+  PENDING
+  VERIFIED
+  ACTIVE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 // ---------------- Users ----------------
 
 model User {
   id           String    @id @default(cuid())
-  email        String    @unique
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String
   passwordHash String
   role         UserRole  @default(STAFF)
   isActive     Boolean   @default(true)
@@ -22,10 +61,12 @@ model User {
   updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime?
 
-  @@index([email])
+  @@unique([tenantId, email])
+  @@index([tenantId, email])
 }
 
 enum UserRole {
+  PLATFORM_ADMIN
   ADMIN
   STAFF
 }
@@ -33,83 +74,98 @@ enum UserRole {
 // ---------------- Shop config ----------------
 
 model ShopConfig {
-  id               String            @id @default(cuid())
-  shopName         String
-  logoUrl          String?
-  description      String?           @db.Text
-  address          String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  whatsappNumbers  WhatsappNumber[]
+  id              String           @id @default(cuid())
+  tenantId        String           @unique
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shopName        String
+  logoUrl         String?
+  description     String?          @db.Text
+  address         String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  whatsappNumbers WhatsappNumber[]
 }
 
 model WhatsappNumber {
-  id           String      @id @default(cuid())
+  id           String     @id @default(cuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   label        String
-  description  String?     @db.Text
+  description  String?    @db.Text
   number       String
-  isActive     Boolean     @default(false)
+  isActive     Boolean    @default(false)
   shopConfigId String
-  shopConfig   ShopConfig  @relation(fields: [shopConfigId], references: [id], onDelete: Cascade)
-  createdAt    DateTime    @default(now())
+  shopConfig   ShopConfig @relation(fields: [shopConfigId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
   vehicles     Vehicle[]
 
-  @@index([shopConfigId, isActive])
+  @@index([tenantId, shopConfigId, isActive])
 }
 
 // ---------------- Vehicles ----------------
 
 model Vehicle {
-  id                String             @id @default(cuid())
-  slug              String             @unique
-  make              String
-  model             String
-  year              Int
-  price             Int
-  mileage           Int
-  color             String
-  description       String?            @db.Text
-  transmission      Transmission
-  fuelType          FuelType
-  status            VehicleStatus      @default(ACTIVE)
-  whatsappNumberId  String?
-  whatsappNumber    WhatsappNumber?    @relation(fields: [whatsappNumberId], references: [id], onDelete: SetNull)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  photos            VehiclePhoto[]
-  attributes        VehicleAttribute[]
-  leadInterests     LeadVehicleInterest[]
+  id               String                @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  slug             String
+  make             String
+  model            String
+  year             Int
+  price            Int
+  mileage          Int
+  color            String
+  description      String?               @db.Text
+  transmission     Transmission
+  fuelType         FuelType
+  status           VehicleStatus         @default(ACTIVE)
+  whatsappNumberId String?
+  whatsappNumber   WhatsappNumber?       @relation(fields: [whatsappNumberId], references: [id], onDelete: SetNull)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  photos           VehiclePhoto[]
+  attributes       VehicleAttribute[]
+  leadInterests    LeadVehicleInterest[]
 
-  @@index([status, createdAt(sort: Desc)])
-  @@index([status, price])
-  @@index([status, year])
-  @@index([make, model])
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([tenantId, status, price])
+  @@index([tenantId, status, year])
+  @@index([tenantId, make, model])
 }
 
 model VehiclePhoto {
   id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   url       String
   position  Int
   vehicleId String
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
-  @@index([vehicleId, position])
+  @@index([tenantId, vehicleId, position])
 }
 
 // ---------------- Attributes ----------------
 
 model AttributeDefinition {
-  id         String             @id @default(cuid())
-  name       String
-  slug       String             @unique
-  icon       String?            // Iconify name, e.g. "i-lucide-snowflake"
-  type       AttributeType
-  options    Json?
-  createdAt  DateTime           @default(now())
-  vehicles   VehicleAttribute[]
+  id        String             @id @default(cuid())
+  tenantId  String
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  icon      String? // Iconify name, e.g. "i-lucide-snowflake"
+  type      AttributeType
+  options   Json?
+  createdAt DateTime           @default(now())
+  vehicles  VehicleAttribute[]
+
+  @@unique([tenantId, slug])
 }
 
 model VehicleAttribute {
+  tenantId              String
+  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vehicleId             String
   attributeDefinitionId String
   value                 String
@@ -117,27 +173,32 @@ model VehicleAttribute {
   attributeDefinition   AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
 
   @@id([vehicleId, attributeDefinitionId])
+  @@index([tenantId])
 }
 
 // ---------------- Leads / CRM ----------------
 
 model Lead {
-  id              String                @id @default(cuid())
-  name            String
-  phone           String
-  email           String?
-  notes           String?               @db.Text
-  source          LeadSource
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id               String                @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  phone            String
+  email            String?
+  notes            String?               @db.Text
+  source           LeadSource
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   vehicleInterests LeadVehicleInterest[]
 
-  @@index([phone])
-  @@index([createdAt(sort: Desc)])
+  @@index([tenantId, phone])
+  @@index([tenantId, createdAt(sort: Desc)])
 }
 
 model LeadVehicleInterest {
   id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   leadId    String
   vehicleId String
   notes     String?  @db.Text
@@ -146,6 +207,7 @@ model LeadVehicleInterest {
   vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@unique([leadId, vehicleId])
+  @@index([tenantId])
 }
 
 // ---------------- Enums ----------------

@@ -1,5 +1,5 @@
 import { CacheModule } from '@nestjs/cache-manager'
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
@@ -10,6 +10,8 @@ import { AuthModule } from './auth/auth.module'
 import { LeadsModule } from './leads/leads.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { ShopConfigModule } from './shop-config/shop-config.module'
+import { TenantMiddleware } from './tenant/tenant.middleware'
+import { TenantModule } from './tenant/tenant.module'
 import { UsersModule } from './users/users.module'
 import { VehiclesModule } from './vehicles/vehicles.module'
 import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.module'
@@ -22,6 +24,7 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
       { name: 'default', ttl: 60_000, limit: 60 },
     ]),
     PrismaModule,
+    TenantModule,
     UsersModule,
     AuthModule,
     ShopConfigModule,
@@ -33,7 +36,12 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
   controllers: [AppController],
   providers: [
     AppService,
+    TenantMiddleware,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenantMiddleware).forRoutes('*')
+  }
+}
