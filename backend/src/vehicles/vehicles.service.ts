@@ -175,6 +175,8 @@ export class VehiclesService {
   }
 
   async create(dto: CreateVehicleDto): Promise<VehicleDetailDto> {
+    // Nested creates bypass the extension's top-level inject — set tenantId explicitly.
+    const tenantId = TenantContext.tenantId()!
     // Slug is immutable post-create. Retry on unique-constraint collision (P2002).
     let lastErr: unknown
     for (let attempt = 0; attempt < SLUG_MAX_RETRIES; attempt++) {
@@ -196,11 +198,12 @@ export class VehiclesService {
             status: (dto.status as VehicleStatus | undefined) ?? undefined,
             whatsappNumberId: dto.whatsappNumberId ?? null,
             photos: dto.photos?.length
-              ? { create: dto.photos.map((p) => ({ url: p.url, position: p.position })) }
+              ? { create: dto.photos.map((p) => ({ tenantId, url: p.url, position: p.position })) }
               : undefined,
             attributes: dto.attributes?.length
               ? {
                   create: dto.attributes.map((a) => ({
+                    tenantId,
                     attributeDefinitionId: a.attributeDefinitionId,
                     value: a.value,
                   })),

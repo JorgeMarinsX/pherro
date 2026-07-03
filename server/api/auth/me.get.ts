@@ -5,5 +5,6 @@ export default defineEventHandler(async (event) => {
     authenticated: true as const,
     email: session.email,
     role: session.role,
+    tenantId: session.tenantId,
   }
 })

@@ -14,6 +14,12 @@ export const TenantContext = {
     return als.run(store, fn)
   },
 
+  // Fastify/middie: the route handler runs OUTSIDE run(store, next)'s scope,
+  // so the middleware must bind the store to the request's async context instead.
+  enterWith(store: TenantStore): void {
+    als.enterWith(store)
+  },
+
   store(): TenantStore | undefined {
     return als.getStore()
   },

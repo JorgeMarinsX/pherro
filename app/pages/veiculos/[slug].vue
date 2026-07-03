@@ -5,12 +5,8 @@ import { TRANSMISSION_LABELS, FUEL_LABELS } from '~/types/vehicle'
 const route = useRoute()
 const slug = computed(() => route.params.slug as string)
 
-const config = useRuntimeConfig()
-// SSR uses container DNS; client uses host-published URL.
-const baseUrl = import.meta.server ? config.backendUrl : config.public.backendUrl
-
 const { data: vehicle, error } = await useFetch<VehicleDetail>(
-  () => `${baseUrl}/vehicles/by-slug/${slug.value}`,
+  () => `/api/vehicles/${slug.value}`,
   {
     key: () => `vehicle-by-slug-${slug.value}`,
     server: true,

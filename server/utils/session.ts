@@ -9,6 +9,9 @@ export type AdminSession = {
   refreshToken: string
   email: string
   role: AuthRole
+  // Cookie is host-only (no Domain attr) so sessions never bleed across
+  // tenant subdomains; tenantId identifies the tenant (null = platform admin).
+  tenantId: string | null
 }
 
 function b64urlEncode(bytes: Uint8Array): string {
@@ -101,7 +104,8 @@ export async function readSession(event: H3Event): Promise<AdminSession | null> 
       typeof session.accessToken !== 'string' ||
       typeof session.refreshToken !== 'string' ||
       typeof session.email !== 'string' ||
-      !isAuthRole(session.role)
+      !isAuthRole(session.role) ||
+      (session.tenantId !== null && typeof session.tenantId !== 'string')
     ) {
       return null
     }

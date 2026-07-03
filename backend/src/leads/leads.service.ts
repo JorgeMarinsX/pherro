@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
+import { TenantContext } from '../tenant/tenant-context'
 import { CreateLeadDto, LeadSourceDto } from './dto/create-lead.dto'
 import { LeadDto } from './dto/lead.dto'
 import { ListLeadsDto } from './dto/list-leads.dto'
@@ -11,6 +12,8 @@ export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateLeadDto): Promise<LeadDto> {
+    // Nested creates bypass the extension's top-level inject — set tenantId explicitly.
+    const tenantId = TenantContext.tenantId()!
     const lead = await this.prisma.scoped.lead.create({
       data: {
         name: dto.name,
@@ -21,6 +24,7 @@ export class LeadsService {
         vehicleInterests: dto.vehicleInterests?.length
           ? {
               create: dto.vehicleInterests.map((v) => ({
+                tenantId,
                 vehicleId: v.vehicleId,
                 notes: v.notes ?? null,
               })),

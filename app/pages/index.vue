@@ -6,15 +6,12 @@ useSeoMeta({
   description: 'Encontre o carro ideal. Estoque selecionado de veículos seminovos com procedência garantida.',
 })
 
-const config = useRuntimeConfig()
-const baseUrl = import.meta.server ? config.backendUrl : config.public.backendUrl
-
 const { data: list } = await useFetch<{
   items: Vehicle[]
   total: number
   take: number
   skip: number
-}>(`${baseUrl}/vehicles`, {
+}>('/api/vehicles', {
   key: 'home-vehicles',
   query: { status: 'ACTIVE', take: 8 },
   default: () => ({ items: [], total: 0, take: 0, skip: 0 }),

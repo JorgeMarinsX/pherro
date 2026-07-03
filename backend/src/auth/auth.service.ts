@@ -53,7 +53,7 @@ export class AuthService {
       this.jwt.signAsync(payload, { expiresIn: accessTtl }),
       this.jwt.signAsync({ ...payload, typ: 'refresh' }, { expiresIn: refreshTtl }),
     ])
-    return { accessToken, refreshToken, email: user.email, role: user.role }
+    return { accessToken, refreshToken, email: user.email, role: user.role, tenantId: user.tenantId }
   }
 
   async refresh(refreshToken: string) {

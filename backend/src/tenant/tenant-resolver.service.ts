@@ -5,6 +5,7 @@ import type { Cache } from 'cache-manager'
 import { PrismaService } from '../prisma/prisma.service'
 
 const hostKey = (host: string) => `host:${host}`
+const idKey = (id: string) => `tenant:id:${id}`
 const HOST_TTL_MS = 300_000
 
 export type ResolvedTenant = { id: string; status: TenantStatus }
@@ -23,15 +24,48 @@ export class TenantResolverService {
     if (cached !== undefined) return cached
 
     const slug = this.slugFromHost(normalized)
-    const tenant = await this.prisma.tenant.findFirst({
+    let tenant = await this.prisma.tenant.findFirst({
       where: slug
         ? { OR: [{ slug }, { customDomain: normalized }] }
         : { customDomain: normalized },
       select: { id: true, status: true },
     })
 
+    // Dev fallback: localhost carries no tenant host — resolve the seeded tenant.
+    // Platform hosts (app.*/www.*/bare base) stay tenant-less so platform login works.
+    if (
+      !tenant &&
+      !this.isPlatformHost(normalized) &&
+      process.env.NODE_ENV !== 'production' &&
+      process.env.TENANT_SLUG
+    ) {
+      tenant = await this.prisma.tenant.findUnique({
+        where: { slug: process.env.TENANT_SLUG },
+        select: { id: true, status: true },
+      })
+    }
+
     await this.cache.set(key, tenant, HOST_TTL_MS)
     return tenant
+  }
+
+  // Validates S2S `x-tenant-id` — never trust a raw header id without a row.
+  async resolveById(id: string): Promise<ResolvedTenant | null> {
+    const key = idKey(id)
+    const cached = await this.cache.get<ResolvedTenant | null>(key)
+    if (cached !== undefined) return cached
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    })
+    await this.cache.set(key, tenant, HOST_TTL_MS)
+    return tenant
+  }
+
+  private isPlatformHost(host: string): boolean {
+    const base = process.env.APP_BASE_DOMAIN ?? 'pherro.app'
+    return host === base || host.startsWith('app.') || host.startsWith('www.')
   }
 
   private slugFromHost(host: string): string | null {

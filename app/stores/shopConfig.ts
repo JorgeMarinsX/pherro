@@ -25,7 +25,10 @@ export const useShopConfigStore = defineStore('shopConfig', () => {
   }
 
   async function fetchConfig() {
-    const cfg = await $fetch<PublicShopConfig>('/api/shop-config')
+    // useRequestFetch forwards incoming headers during SSR — the BFF needs the
+    // original Host to resolve the tenant; plain $fetch would drop it.
+    const request = useRequestFetch()
+    const cfg = await request<PublicShopConfig>('/api/shop-config')
     apply(cfg)
   }
 

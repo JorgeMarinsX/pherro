@@ -27,9 +27,6 @@ export interface VehicleSearchState {
  * where useVehicleList re-runs the identical backend search (now paginated/filterable).
  */
 export function useVehicleSearch(): VehicleSearchState {
-  const config = useRuntimeConfig()
-  const baseUrl = import.meta.server ? config.backendUrl : config.public.backendUrl
-
   const query = ref('')
   const term = computed(() => query.value.trim())
 
@@ -42,7 +39,7 @@ export function useVehicleSearch(): VehicleSearchState {
     timer = setTimeout(() => { debouncedTerm.value = t }, DEBOUNCE_MS)
   })
 
-  const { data, status } = useFetch<VehicleListResponse>(`${baseUrl}/vehicles`, {
+  const { data, status } = useFetch<VehicleListResponse>('/api/vehicles', {
     key: 'vehicle-search',
     query: { status: 'ACTIVE', take: SUGGEST_LIMIT, q: debouncedTerm },
     immediate: false,

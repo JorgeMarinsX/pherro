@@ -15,11 +15,14 @@ type MeResponse = {
   authenticated: boolean
   email?: string
   role?: AuthRole
+  tenantId?: string | null
 }
 
 export const useAuthStore = defineStore('auth', () => {
   const email = ref<string | null>(null)
   const role = ref<AuthRole | null>(null)
+  // Tenant the session belongs to; null = platform admin (cross-tenant).
+  const tenantId = ref<string | null>(null)
 
   const authenticated = computed(() => !!email.value)
   // Cosmetic gate for admin-only UI affordances. NOT a permission check.
@@ -35,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (me.authenticated) {
       email.value = me.email ?? null
       role.value = me.role ?? null
+      tenantId.value = me.tenantId ?? null
     } else {
       $reset()
     }
@@ -43,7 +47,8 @@ export const useAuthStore = defineStore('auth', () => {
   function $reset() {
     email.value = null
     role.value = null
+    tenantId.value = null
   }
 
-  return { email, role, authenticated, isAdmin, fetchMe, $reset }
+  return { email, role, tenantId, authenticated, isAdmin, fetchMe, $reset }
 })

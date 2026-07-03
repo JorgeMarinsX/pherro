@@ -5,14 +5,12 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@pinia/nuxt'],
   css: ['~/assets/css/main.css'],
   future: { compatibilityVersion: 4 },
+  // Tenant is resolved per request from Host — never a static env. The browser
+  // only talks to the BFF (/api/**); no public backend URL exists.
   runtimeConfig: {
     backendUrl: process.env.BACKEND_URL,
-    tenantSlug: process.env.TENANT_SLUG,
     adminToken: process.env.BACKEND_ADMIN_TOKEN,
     sessionSecret: process.env.SESSION_SECRET,
-    public: {
-      backendUrl: process.env.NUXT_PUBLIC_BACKEND_URL,
-    },
   },
   app: {
     head: {

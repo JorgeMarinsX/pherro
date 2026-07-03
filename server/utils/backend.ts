@@ -31,6 +31,12 @@ export async function backendFetch<T = unknown>(
     ...(headers as Record<string, string> | undefined),
   }
 
+  // Tenant context: backend resolves the tenant from the original request host.
+  if (event && !mergedHeaders['x-forwarded-host']) {
+    const host = getRequestHost(event, { xForwardedHost: true })
+    if (host) mergedHeaders['x-forwarded-host'] = host
+  }
+
   if (admin) {
     const token = config.adminToken
     if (!token) {
@@ -58,6 +64,7 @@ type RefreshResponse = {
   refreshToken: string
   email: string
   role: AuthRole
+  tenantId: string | null
 }
 
 /**
@@ -98,6 +105,7 @@ export async function backendFetchAsUser<T = unknown>(
       refreshToken: refreshed.refreshToken,
       email: refreshed.email,
       role: refreshed.role,
+      tenantId: refreshed.tenantId,
     })
 
     return await backendFetch<T>(event, path, { ...opts, bearer: refreshed.accessToken })

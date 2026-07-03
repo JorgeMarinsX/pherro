@@ -67,9 +67,6 @@ export interface VehicleListState {
 }
 
 export function useVehicleList(): VehicleListState {
-  const config = useRuntimeConfig()
-  const baseUrl = import.meta.server ? config.backendUrl : config.public.backendUrl
-
   const route = useRoute()
   const router = useRouter()
 
@@ -131,7 +128,7 @@ export function useVehicleList(): VehicleListState {
   // No await: useFetch registers with Nuxt's payload and SSR blocks on it
   // automatically. Awaiting inside a nested async composable drops the Nuxt
   // instance context on resume → "composable called outside setup" 500.
-  const { data, pending, error } = useFetch<VehicleListResponse>(`${baseUrl}/vehicles`, {
+  const { data, pending, error } = useFetch<VehicleListResponse>('/api/vehicles', {
     key: 'veiculos-list',
     query: debouncedQuery,
     default: () => ({ items: [], total: 0, take: PAGE_SIZE, skip: 0 }),
@@ -146,7 +143,7 @@ export function useVehicleList(): VehicleListState {
   // payload cache + backend per-id cache (see instructions §7.1). One extra slim
   // query, not the whole inventory — that would be the real perf trap. ---
   const debouncedNextQuery = ref<Record<string, string | number>>(buildQuery(skip.value + PAGE_SIZE))
-  const prefetch = useFetch<VehicleListResponse>(`${baseUrl}/vehicles`, {
+  const prefetch = useFetch<VehicleListResponse>('/api/vehicles', {
     key: 'veiculos-list-prefetch',
     query: debouncedNextQuery,
     immediate: false,

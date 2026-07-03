@@ -13,6 +13,7 @@ type LoginResponse = {
   refreshToken: string
   email: string
   role: AuthRole
+  tenantId: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -44,7 +45,8 @@ export default defineEventHandler(async (event) => {
     refreshToken: res.refreshToken,
     email: res.email,
     role: res.role,
+    tenantId: res.tenantId,
   })
 
-  return { ok: true, email: res.email, role: res.role }
+  return { ok: true, email: res.email, role: res.role, tenantId: res.tenantId }
 })
