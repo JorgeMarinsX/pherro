@@ -37,6 +37,12 @@ export async function backendFetch<T = unknown>(
     if (host) mergedHeaders['x-forwarded-host'] = host
   }
 
+  // Real client IP — without it the backend throttles all visitors as one caller.
+  if (event && !mergedHeaders['x-forwarded-for']) {
+    const ip = getRequestIP(event, { xForwardedFor: true })
+    if (ip) mergedHeaders['x-forwarded-for'] = ip
+  }
+
   if (admin) {
     const token = config.adminToken
     if (!token) {

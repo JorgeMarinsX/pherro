@@ -80,4 +80,12 @@ export class TenantResolverService {
   async invalidate(host: string): Promise<void> {
     await this.cache.del(hostKey(host.toLowerCase().split(':')[0]))
   }
+
+  // Drop every cache entry that can resolve this tenant (suspend/update must bite now).
+  async invalidateTenant(t: { id: string; slug: string; customDomain: string | null }): Promise<void> {
+    const base = process.env.APP_BASE_DOMAIN ?? 'pherro.app'
+    const keys = [idKey(t.id), hostKey(`${t.slug}.${base}`)]
+    if (t.customDomain) keys.push(hostKey(t.customDomain.toLowerCase()))
+    await Promise.all(keys.map((k) => this.cache.del(k)))
+  }
 }

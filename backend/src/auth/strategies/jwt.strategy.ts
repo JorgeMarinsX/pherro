@@ -41,9 +41,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
-    // Reject token replay onto another tenant's host.
+    // Fail closed: tenant tokens only work where the request context resolves
+    // to the SAME tenant — unknown/platform hosts reject, not just mismatches.
     const hostTenant = TenantContext.tenantId()
-    if (!payload.tenantId || (hostTenant && hostTenant !== payload.tenantId)) {
+    if (!payload.tenantId || hostTenant !== payload.tenantId) {
       throw new UnauthorizedException()
     }
 
