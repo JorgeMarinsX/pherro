@@ -7,10 +7,14 @@ export default defineNuxtConfig({
   future: { compatibilityVersion: 4 },
   // Tenant is resolved per request from Host — never a static env. The browser
   // only talks to the BFF (/api/**); no public backend URL exists.
+  // Empty defaults keep the keys in the schema so NUXT_* envs override at runtime (prod image).
   runtimeConfig: {
-    backendUrl: process.env.BACKEND_URL,
-    adminToken: process.env.BACKEND_ADMIN_TOKEN,
-    sessionSecret: process.env.SESSION_SECRET,
+    backendUrl: process.env.BACKEND_URL ?? '',
+    adminToken: process.env.BACKEND_ADMIN_TOKEN ?? '',
+    sessionSecret: process.env.SESSION_SECRET ?? '',
+    public: {
+      appBaseDomain: process.env.APP_BASE_DOMAIN ?? 'pherro.app',
+    },
   },
   app: {
     head: {

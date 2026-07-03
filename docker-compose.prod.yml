@@ -1,0 +1,172 @@
+# Pherro — PRODUCTION stack (Portainer + Traefik).
+#
+#   Deploy:            docker compose -f docker-compose.prod.yml up -d --build
+#   First platform admin (one-off, idempotent):
+#                      docker compose -f docker-compose.prod.yml run --rm backend \
+#                        bun run scripts/create-platform-admin.ts
+#
+# Routing:
+#   *.APP_BASE_DOMAIN + apex  → wildcard cert (DNS-01, needs provider creds)
+#   any other host            → tenant custom domain, on-demand cert (HTTP-01)
+# app.APP_BASE_DOMAIN serves the platform UI (host split happens inside Nuxt).
+#
+# Only Traefik publishes ports. Backend + Postgres live on an internal network
+# with no host exposure and no egress.
+
+name: pherro-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  traefik:
+    image: traefik:v3.5
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=pherro-edge
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      # Wildcard *.APP_BASE_DOMAIN — DNS-01 (provider creds via environment below).
+      - --certificatesresolvers.ledns.acme.email=${TRAEFIK_ACME_EMAIL}
+      - --certificatesresolvers.ledns.acme.storage=/letsencrypt/acme-dns.json
+      - --certificatesresolvers.ledns.acme.dnschallenge=true
+      - --certificatesresolvers.ledns.acme.dnschallenge.provider=${TRAEFIK_DNS_PROVIDER:-cloudflare}
+      # Tenant custom domains — HTTP-01, issued on demand per SNI (domain must
+      # already point at this host, which is exactly the ownership proof).
+      - --certificatesresolvers.lehttp.acme.email=${TRAEFIK_ACME_EMAIL}
+      - --certificatesresolvers.lehttp.acme.storage=/letsencrypt/acme-http.json
+      - --certificatesresolvers.lehttp.acme.httpchallenge=true
+      - --certificatesresolvers.lehttp.acme.httpchallenge.entrypoint=web
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --accesslog=true
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Cloudflare example — swap for your DNS provider's vars (docs: Traefik ACME providers).
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/letsencrypt
+    networks:
+      - edge
+    logging: *logging
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pherro-app:prod
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      # NUXT_* envs override runtimeConfig at runtime (values are not baked at build).
+      NUXT_BACKEND_URL: http://backend:3001
+      NUXT_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
+      NUXT_SESSION_SECRET: ${SESSION_SECRET}
+      NUXT_PUBLIC_APP_BASE_DOMAIN: ${APP_BASE_DOMAIN}
+    networks:
+      - edge
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.pherro-app.loadbalancer.server.port=3000
+      # Security headers on every response.
+      - traefik.http.middlewares.pherro-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.pherro-headers.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.pherro-headers.headers.stsPreload=true
+      - traefik.http.middlewares.pherro-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.pherro-headers.headers.frameDeny=true
+      - traefik.http.middlewares.pherro-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+      # Router 1 — platform + tenant subdomains + apex, wildcard cert.
+      - 'traefik.http.routers.pherro-wildcard.rule=Host(`${APP_BASE_DOMAIN}`) || HostRegexp(`^[a-z0-9-]+\.${APP_BASE_DOMAIN}$$`)'
+      - traefik.http.routers.pherro-wildcard.entrypoints=websecure
+      - traefik.http.routers.pherro-wildcard.priority=10
+      - traefik.http.routers.pherro-wildcard.middlewares=pherro-headers
+      - traefik.http.routers.pherro-wildcard.tls.certresolver=ledns
+      - traefik.http.routers.pherro-wildcard.tls.domains[0].main=${APP_BASE_DOMAIN}
+      - traefik.http.routers.pherro-wildcard.tls.domains[0].sans=*.${APP_BASE_DOMAIN}
+      # Router 2 — tenant custom domains: catch-all, cert issued on demand.
+      # Unknown hosts still terminate TLS but Nuxt/backend resolve no tenant → 404.
+      - 'traefik.http.routers.pherro-custom.rule=HostRegexp(`^.+$$`)'
+      - traefik.http.routers.pherro-custom.entrypoints=websecure
+      - traefik.http.routers.pherro-custom.priority=1
+      - traefik.http.routers.pherro-custom.middlewares=pherro-headers
+      - traefik.http.routers.pherro-custom.tls.certresolver=lehttp
+    logging: *logging
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: pherro-backend:prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # Runtime = non-superuser role (superusers bypass RLS). Migrations = postgres.
+      DATABASE_URL: postgresql://app_runtime:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}?schema=public
+      MIGRATE_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}?schema=public
+      APP_BASE_DOMAIN: ${APP_BASE_DOMAIN}
+      # No TENANT_SLUG in prod — unknown hosts resolve no tenant (fail-closed).
+      BACKEND_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # Consumed only by scripts/create-platform-admin.ts (one-off run).
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD}
+    networks:
+      - internal
+    logging: *logging
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    mem_limit: 1g
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+networks:
+  edge:
+    name: pherro-edge
+  # internal: true — no host exposure, no egress for backend/db.
+  internal:
+    name: pherro-internal
+    internal: true
+
+volumes:
+  db-data:
+  traefik-acme:

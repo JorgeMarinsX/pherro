@@ -126,3 +126,12 @@ export async function requireSession(event: H3Event): Promise<AdminSession> {
   }
   return session
 }
+
+// Cross-tenant surface guard: PLATFORM_ADMIN only (backend re-enforces via JWT role).
+export async function requirePlatformSession(event: H3Event): Promise<AdminSession> {
+  const session = await requireSession(event)
+  if (session.role !== 'PLATFORM_ADMIN' || session.tenantId !== null) {
+    throw createError({ statusCode: 403, statusMessage: 'Acesso restrito à plataforma' })
+  }
+  return session
+}

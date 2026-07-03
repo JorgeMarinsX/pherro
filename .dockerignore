@@ -15,3 +15,8 @@ coverage
 .idea
 README.md
 instructions
+backend
+db
+docker-compose*.yml
+Dockerfile
+.dockerignore

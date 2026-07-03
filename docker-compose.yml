@@ -29,6 +29,7 @@ services:
       BACKEND_URL: http://backend:3001
       BACKEND_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
       SESSION_SECRET: ${SESSION_SECRET}
+      APP_BASE_DOMAIN: ${APP_BASE_DOMAIN:-pherro.app}
     volumes:
       - .:/app
       - app-node-modules:/app/node_modules
