@@ -1,4 +1,4 @@
-import { IsEmail, IsString, Length, Matches, MinLength } from 'class-validator'
+import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator'
 
 // Self-service signup: same shape as CreateTenantDto minus `plan` (always free).
 export class SignupDto {
@@ -19,4 +19,9 @@ export class SignupDto {
 
   @MinLength(8)
   adminPassword!: string
+
+  // Billing document (CPF 11 / CNPJ 14 digits). Optional — enables billing later.
+  @IsOptional()
+  @Matches(/^\d{11}$|^\d{14}$/, { message: 'CPF/CNPJ deve ter 11 ou 14 dígitos (apenas números)' })
+  cpfCnpj?: string
 }

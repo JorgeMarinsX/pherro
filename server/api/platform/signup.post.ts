@@ -7,6 +7,7 @@ const bodySchema = z.object({
   name: z.string().min(2).max(120),
   adminEmail: z.string().email(),
   adminPassword: z.string().min(8),
+  cpfCnpj: z.string().regex(/^\d{11}$|^\d{14}$/).optional(),
 })
 
 export default defineEventHandler(async (event) => {

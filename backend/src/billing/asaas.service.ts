@@ -1,0 +1,111 @@
+import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+
+// Raised for non-2xx responses so callers can decide fatal vs best-effort.
+export class AsaasApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: unknown,
+  ) {
+    super(`Asaas API error ${status}`)
+  }
+}
+
+export interface AsaasCustomerInput {
+  name: string
+  cpfCnpj: string
+  email?: string
+  mobilePhone?: string
+  externalReference?: string
+  notificationDisabled?: boolean
+}
+
+export interface AsaasCustomer {
+  id: string
+  name: string
+  cpfCnpj: string
+  email?: string
+}
+
+export type AsaasBillingType = 'UNDEFINED' | 'BOLETO' | 'CREDIT_CARD' | 'PIX'
+export type AsaasCycle =
+  | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'BIMONTHLY' | 'QUARTERLY' | 'SEMIANNUALLY' | 'YEARLY'
+
+export interface AsaasSubscriptionInput {
+  customer: string
+  billingType: AsaasBillingType
+  value: number
+  nextDueDate: string // YYYY-MM-DD
+  cycle: AsaasCycle
+  description?: string
+  externalReference?: string
+}
+
+export interface AsaasSubscription {
+  id: string
+  customer: string
+  status: string
+  value: number
+  cycle: AsaasCycle
+}
+
+// Thin HTTP client for the Asaas REST API. Auth = `access_token` header (not Bearer);
+// `User-Agent` is mandatory. Unconfigured (no key) is a supported state: callers must
+// check `isConfigured` and skip billing side-effects.
+@Injectable()
+export class AsaasService {
+  private readonly logger = new Logger(AsaasService.name)
+  private readonly apiKey: string
+  private readonly baseUrl: string
+
+  constructor(config: ConfigService) {
+    this.apiKey = config.get<string>('ASAAS_API_KEY', '')
+    this.baseUrl = (config.get<string>('ASAAS_BASE_URL') || 'https://api-sandbox.asaas.com/v3')
+      .replace(/\/+$/, '')
+    if (!this.apiKey) {
+      this.logger.warn('ASAAS_API_KEY not set — billing calls will be skipped')
+    }
+  }
+
+  get isConfigured(): boolean {
+    return this.apiKey.length > 0
+  }
+
+  createCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
+    return this.request<AsaasCustomer>('POST', '/customers', input)
+  }
+
+  createSubscription(input: AsaasSubscriptionInput): Promise<AsaasSubscription> {
+    return this.request<AsaasSubscription>('POST', '/subscriptions', input)
+  }
+
+  getSubscription(id: string): Promise<AsaasSubscription> {
+    return this.request<AsaasSubscription>('GET', `/subscriptions/${id}`)
+  }
+
+  cancelSubscription(id: string): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>('DELETE', `/subscriptions/${id}`)
+  }
+
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    if (!this.isConfigured) {
+      throw new AsaasApiError(0, 'ASAAS_API_KEY not configured')
+    }
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        'access_token': this.apiKey,
+        'User-Agent': 'Pherro/1.0 (NestJS backend)',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+    const text = await res.text()
+    const json: unknown = text ? JSON.parse(text) : null
+    if (!res.ok) {
+      this.logger.error(`Asaas ${method} ${path} → ${res.status}: ${text.slice(0, 500)}`)
+      throw new AsaasApiError(res.status, json)
+    }
+    return json as T
+  }
+}

@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
+import { BillingService } from '../billing/billing.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { TenantResolverService } from '../tenant/tenant-resolver.service'
 import { UsersService } from '../users/users.service'
@@ -27,6 +28,7 @@ export class PlatformTenantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly resolver: TenantResolverService,
+    private readonly billing: BillingService,
   ) {}
 
   async list(): Promise<TenantDto[]> {
@@ -52,7 +54,7 @@ export class PlatformTenantsService {
     try {
       const tenant = await this.prisma.$transaction(async (tx) => {
         const created = await tx.tenant.create({
-          data: { slug, name: dto.name, plan: dto.plan ?? 'free' },
+          data: { slug, name: dto.name, plan: dto.plan ?? 'free', cpfCnpj: dto.cpfCnpj ?? null },
         })
         // Owned rows sit behind FORCE RLS — bind the new tenant's GUC to this tx.
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${created.id}, true)`
@@ -72,6 +74,13 @@ export class PlatformTenantsService {
           data: DEFAULT_ATTRIBUTES.map((a) => ({ ...a, tenantId: created.id })),
         })
         return created
+      })
+      // Post-commit, best-effort: billing provider link never blocks provisioning.
+      await this.billing.ensureCustomerForTenant({
+        tenantId: tenant.id,
+        name: tenant.name,
+        cpfCnpj: tenant.cpfCnpj,
+        email: dto.adminEmail.toLowerCase(),
       })
       return plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true })
     } catch (e) {

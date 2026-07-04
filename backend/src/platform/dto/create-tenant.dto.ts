@@ -19,6 +19,11 @@ export class CreateTenantDto {
   @MinLength(8)
   adminPassword!: string
 
+  // Billing document (CPF 11 / CNPJ 14 digits). Optional — required only to bill.
+  @IsOptional()
+  @Matches(/^\d{11}$|^\d{14}$/, { message: 'CPF/CNPJ deve ter 11 ou 14 dígitos (apenas números)' })
+  cpfCnpj?: string
+
   @IsOptional()
   @IsString()
   plan?: string

@@ -14,9 +14,12 @@ const state = reactive({
   name: '',
   slug: '',
   adminEmail: '',
+  cpfCnpj: '',
   adminPassword: '',
   passwordConfirm: '',
 })
+
+const cpfCnpjDigits = computed(() => state.cpfCnpj.replace(/\D/g, ''))
 
 // Suggest slug from name until the user types their own (mirrors TenantFormModal).
 const slugTouched = ref(false)
@@ -42,6 +45,9 @@ function validate(s: typeof state) {
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.adminEmail)) {
     errors.push({ name: 'adminEmail', message: 'Informe um e-mail válido.' })
+  }
+  if (s.cpfCnpj && !/^\d{11}$|^\d{14}$/.test(s.cpfCnpj.replace(/\D/g, ''))) {
+    errors.push({ name: 'cpfCnpj', message: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.' })
   }
   if (s.adminPassword.length < 8) {
     errors.push({ name: 'adminPassword', message: 'A senha precisa de pelo menos 8 caracteres.' })
@@ -72,6 +78,7 @@ async function onSubmit() {
         slug: state.slug,
         adminEmail: state.adminEmail,
         adminPassword: state.adminPassword,
+        ...(cpfCnpjDigits.value ? { cpfCnpj: cpfCnpjDigits.value } : {}),
       },
     })
     created.value = { slug: tenant.slug }
@@ -170,6 +177,21 @@ async function onSubmit() {
               autocomplete="email"
               placeholder="voce@sualoja.com"
               icon="i-lucide-mail"
+              size="lg"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField
+            label="CPF ou CNPJ"
+            name="cpfCnpj"
+            help="Opcional agora. Necessário para assinar um plano pago."
+          >
+            <UInput
+              v-model="state.cpfCnpj"
+              inputmode="numeric"
+              placeholder="000.000.000-00"
+              icon="i-lucide-id-card"
               size="lg"
               class="w-full"
             />

@@ -21,6 +21,10 @@ model Tenant {
   domainStatus DomainStatus @default(NONE)
   plan         String       @default("free")
   status       TenantStatus @default(ACTIVE)
+  // Billing (Asaas): document + provider ids. Customer created best-effort at signup.
+  cpfCnpj             String?
+  asaasCustomerId     String? @unique
+  asaasSubscriptionId String? @unique
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -45,6 +49,15 @@ enum DomainStatus {
 enum TenantStatus {
   ACTIVE
   SUSPENDED
+}
+
+// Billing webhook dedupe ledger (delivery is at-least-once).
+// Platform-owned: no tenantId, no RLS — like Tenant.
+model AsaasWebhookEvent {
+  id         String   @id // provider event id
+  event      String
+  payload    Json
+  receivedAt DateTime @default(now())
 }
 
 // ---------------- Users ----------------
