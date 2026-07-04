@@ -1,4 +1,11 @@
 <script setup lang="ts">
+// Platform chrome is always dark (amber-on-black). Force dark mode while here,
+// restore the user's preference on leave so tenant admin is unaffected.
+const colorMode = useColorMode()
+const prevMode = colorMode.preference
+colorMode.preference = 'dark'
+onBeforeUnmount(() => { colorMode.preference = prevMode })
+
 const auth = useAuthStore()
 const { email } = storeToRefs(auth)
 
@@ -25,7 +32,7 @@ const userMenu = computed(() => [
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
+  <UDashboardGroup unit="rem" class="theme-platform bg-zinc-950 text-white">
     <UDashboardSidebar
       id="platform-sidebar"
       resizable
@@ -33,12 +40,13 @@ const userMenu = computed(() => [
       :default-size="16"
       :min-size="14"
       :max-size="22"
+      :ui="{ root: 'bg-zinc-900/60 border-r border-zinc-800', header: 'border-zinc-800', footer: 'border-zinc-800' }"
     >
       <template #header="{ collapsed: headerCollapsed }">
-        <NuxtLink to="/platform" class="flex items-center gap-2 text-highlighted">
-          <UIcon name="i-lucide-building-2" class="size-7 shrink-0 text-primary-600" />
+        <NuxtLink to="/platform" class="flex items-center gap-2 text-white">
+          <UIcon name="i-lucide-building-2" class="size-7 shrink-0 text-primary-400" />
           <span v-if="!headerCollapsed" class="text-lg font-extrabold tracking-tight">
-            Pherro
+            Plataforma
           </span>
         </NuxtLink>
       </template>

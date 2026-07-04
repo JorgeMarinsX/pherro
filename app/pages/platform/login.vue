@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'auth',
+  layout: 'platform-auth',
 })
 
-useHead({ title: 'Entrar — Pherro Plataforma' })
+useHead({ title: 'Entrar — Pherro | Plataforma administrativa' })
 
 const route = useRoute()
 const toast = useToast()
@@ -50,14 +50,16 @@ async function onSubmit() {
 </script>
 
 <template>
-  <UCard class="w-full max-w-md">
-    <template #header>
-      <div class="flex flex-col items-center gap-2 text-center">
-        <UIcon name="i-lucide-building-2" class="size-10 text-primary-400" />
-        <h1 class="text-xl font-bold text-highlighted">Pherro Plataforma</h1>
-        <p class="text-sm text-muted">Entre para gerenciar as lojas</p>
+  <div class="w-full max-w-sm">
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <div class="rounded-xl bg-primary-500/15 p-3 ring-1 ring-primary-500/30">
+          <UIcon name="i-lucide-building-2" class="size-8 text-primary-400" />
+        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-white">Pherro | Plataforma administrativa</h1>
       </div>
-    </template>
+      <p class="mt-3 text-sm text-zinc-400">Central de controle — acesso restrito.</p>
+    </div>
 
     <UForm :state="state" class="space-y-4" @submit="onSubmit">
       <UFormField label="E-mail" name="email" required>
@@ -81,14 +83,31 @@ async function onSubmit() {
         />
       </UFormField>
 
+      <!-- TODO: implement password recovery flow — link disabled until it exists. -->
+      <div class="flex justify-end">
+        <UButton
+          variant="link"
+          size="sm"
+          color="primary"
+          label="Recuperar senha"
+          disabled
+          :padded="false"
+        />
+      </div>
+
       <UButton
         type="submit"
         color="primary"
         block
+        size="lg"
         :loading="loading"
         label="Entrar"
-        :ui="{ base: 'text-white' }"
+        :ui="{ base: 'text-white font-semibold' }"
       />
     </UForm>
-  </UCard>
+
+    <p class="mt-8 text-center text-xs text-zinc-500 lg:text-left">
+      Não é uma loja? Administradores de loja acessam pelo domínio da loja.
+    </p>
+  </div>
 </template>
