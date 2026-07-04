@@ -136,6 +136,12 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
+      # E-mail (Resend). Empty key = sends skipped, flows still work.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-Pherro <onboarding@resend.dev>}
+      # Absolute-URL building in e-mails (scheme/port; host comes from APP_BASE_DOMAIN).
+      # Empty → https://<slug>.APP_BASE_DOMAIN (correct prod default).
+      SITE_URL: ${SITE_URL:-}
       # Consumed only by scripts/create-platform-admin.ts (one-off run).
       PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL}
       PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD}

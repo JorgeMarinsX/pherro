@@ -37,6 +37,8 @@ model Tenant {
   vehicleAttributes    VehicleAttribute[]
   leads                Lead[]
   leadVehicleInterests LeadVehicleInterest[]
+  emailCampaigns       EmailCampaign[]
+  campaignRecipients   CampaignRecipient[]
 }
 
 enum DomainStatus {
@@ -213,6 +215,7 @@ model Lead {
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   vehicleInterests LeadVehicleInterest[]
+  campaignEmails   CampaignRecipient[]
 
   @@index([tenantId, phone])
   @@index([tenantId, createdAt(sort: Desc)])
@@ -231,6 +234,73 @@ model LeadVehicleInterest {
 
   @@unique([leadId, vehicleId])
   @@index([tenantId])
+}
+
+// ---------------- E-mail ----------------
+
+// Transactional templates (welcome, password recovery, new lead...).
+// Platform-owned: no tenantId, no RLS — edited only in the platform panel.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  subject   String
+  html      String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Marketing campaign (CRM) — tenant-owned, sent to leads with e-mail.
+model EmailCampaign {
+  id             String              @id @default(cuid())
+  tenantId       String
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  subject        String              @default("")
+  html           String              @default("") @db.Text
+  status         CampaignStatus      @default(DRAFT)
+  recipientCount Int                 @default(0)
+  sentCount      Int                 @default(0)
+  failedCount    Int                 @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  recipients     CampaignRecipient[]
+
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+model CampaignRecipient {
+  id         String          @id @default(cuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaignId String
+  campaign   EmailCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId     String?
+  lead       Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  email      String
+  name       String
+  status     RecipientStatus @default(PENDING)
+  resendId   String?
+  error      String?
+  createdAt  DateTime        @default(now())
+
+  @@unique([campaignId, email])
+  @@index([tenantId, campaignId, status])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+enum RecipientStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 // ---------------- Enums ----------------

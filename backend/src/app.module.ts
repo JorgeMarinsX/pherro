@@ -8,6 +8,8 @@ import { AppService } from './app.service'
 import { AttributesModule } from './attributes/attributes.module'
 import { AuthModule } from './auth/auth.module'
 import { BillingModule } from './billing/billing.module'
+import { CampaignsModule } from './campaigns/campaigns.module'
+import { EmailModule } from './email/email.module'
 import { LeadsModule } from './leads/leads.module'
 import { PlatformModule } from './platform/platform.module'
 import { PrismaModule } from './prisma/prisma.module'
@@ -37,6 +39,8 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
     WhatsappNumbersModule,
     AttributesModule,
     LeadsModule,
+    EmailModule,
+    CampaignsModule,
     PlatformModule,
   ],
   controllers: [AppController],

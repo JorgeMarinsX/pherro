@@ -24,6 +24,7 @@ const links = ref([
     { label: 'Painel', icon: 'i-lucide-layout-dashboard', to: '/admin' },
     { label: 'Anúncios', icon: 'i-lucide-car-front', to: '/admin/anuncios' },
     { label: 'Leads', icon: 'i-lucide-users', to: '/admin/leads' },
+    { label: 'E-mail marketing', icon: 'i-lucide-mail', to: '/admin/marketing' },
     { label: 'Atributos', icon: 'i-lucide-sliders-horizontal', to: '/admin/atributos' },
     { label: 'WhatsApp', icon: 'i-lucide-message-circle', to: '/admin/whatsapp' },
   ],

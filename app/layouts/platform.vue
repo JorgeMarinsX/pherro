@@ -18,6 +18,7 @@ async function logout() {
 const links = ref([
   [
     { label: 'Lojas', icon: 'i-lucide-store', to: '/platform' },
+    { label: 'E-mails transacionais', icon: 'i-lucide-mail', to: '/platform/emails' },
   ],
 ])
 

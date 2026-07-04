@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { Prisma, type Lead } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
+import { EmailTemplatesService } from '../email/email-templates.service'
+import { tenantUrl } from '../email/tenant-urls'
 import { PrismaService } from '../prisma/prisma.service'
 import { TenantContext } from '../tenant/tenant-context'
 import { CreateLeadDto, LeadSourceDto } from './dto/create-lead.dto'
@@ -9,7 +11,12 @@ import { ListLeadsDto } from './dto/list-leads.dto'
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(LeadsService.name)
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailTemplatesService,
+  ) {}
 
   async create(dto: CreateLeadDto): Promise<LeadDto> {
     // Nested creates bypass the extension's top-level inject — set tenantId explicitly.
@@ -33,7 +40,47 @@ export class LeadsService {
       },
       include: { vehicleInterests: true },
     })
+    // Fire-and-forget: notification must never block or fail the public form.
+    if (lead.source === 'FORM') {
+      void this.notifyNewLead(lead).catch((e: Error) =>
+        this.logger.error(`new-lead notification failed: ${e.message}`),
+      )
+    }
     return plainToInstance(LeadDto, lead, { excludeExtraneousValues: true })
+  }
+
+  // E-mails every active ADMIN of the tenant using the `new_lead` template.
+  private async notifyNewLead(lead: Lead): Promise<void> {
+    const admins = await this.prisma.scoped.user.findMany({
+      where: { role: 'ADMIN', isActive: true },
+      select: { email: true },
+    })
+    if (admins.length === 0) return
+
+    const [shop, interest, tenant] = await Promise.all([
+      this.prisma.scoped.shopConfig.findFirst({ select: { shopName: true } }),
+      this.prisma.scoped.leadVehicleInterest.findFirst({
+        where: { leadId: lead.id },
+        include: { vehicle: { select: { make: true, model: true, year: true } } },
+      }),
+      this.prisma.tenant.findUnique({
+        where: { id: lead.tenantId },
+        select: { slug: true },
+      }),
+    ])
+
+    const vehicle = interest
+      ? `${interest.vehicle.make} ${interest.vehicle.model} ${interest.vehicle.year}`
+      : ''
+
+    await this.email.sendTransactional('new_lead', admins.map((a) => a.email), {
+      SHOP_NAME: shop?.shopName ?? '',
+      LEAD_NAME: lead.name,
+      LEAD_PHONE: lead.phone,
+      LEAD_EMAIL: lead.email ?? '—',
+      VEHICLE: vehicle,
+      ADMIN_URL: tenantUrl(tenant?.slug ?? '', '/admin/leads'),
+    })
   }
 
   async list(q: ListLeadsDto) {

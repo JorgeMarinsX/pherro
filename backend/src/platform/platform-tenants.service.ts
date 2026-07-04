@@ -2,6 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
 import { BillingService } from '../billing/billing.service'
+import { EmailTemplatesService } from '../email/email-templates.service'
+import { tenantUrl } from '../email/tenant-urls'
 import { PrismaService } from '../prisma/prisma.service'
 import { TenantResolverService } from '../tenant/tenant-resolver.service'
 import { UsersService } from '../users/users.service'
@@ -29,6 +31,7 @@ export class PlatformTenantsService {
     private readonly prisma: PrismaService,
     private readonly resolver: TenantResolverService,
     private readonly billing: BillingService,
+    private readonly email: EmailTemplatesService,
   ) {}
 
   async list(): Promise<TenantDto[]> {
@@ -82,6 +85,14 @@ export class PlatformTenantsService {
         cpfCnpj: tenant.cpfCnpj,
         email: dto.adminEmail.toLowerCase(),
       })
+      if (tenant.plan !== 'demo') {
+        await this.email.sendTransactional('welcome', dto.adminEmail.toLowerCase(), {
+          FIRST_NAME: tenant.name,
+          SHOP_NAME: tenant.name,
+          EMAIL: dto.adminEmail.toLowerCase(),
+          LOGIN_URL: tenantUrl(slug, '/admin'),
+        })
+      }
       return plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
