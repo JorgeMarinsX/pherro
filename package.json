@@ -18,6 +18,8 @@
     "@iconify-json/simple-icons": "^1.2.0",
     "@nuxt/ui": "^4.7.1",
     "@pinia/nuxt": "^0.11.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "nuxt": "^4.4.5",
     "pinia": "^3.0.0",
     "tailwindcss": "^4.3.0",

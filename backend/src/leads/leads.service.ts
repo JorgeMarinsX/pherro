@@ -86,6 +86,7 @@ export class LeadsService {
   async list(q: ListLeadsDto) {
     const where: Prisma.LeadWhereInput = {}
     if (q.phone) where.phone = { contains: q.phone }
+    if (q.source) where.source = q.source
     if (q.search) {
       where.OR = [
         { name: { contains: q.search, mode: 'insensitive' } },

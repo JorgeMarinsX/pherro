@@ -1,5 +1,6 @@
 import type { Ref } from '#imports'
 import type {
+  Vehicle,
   VehicleCreatePayload,
   VehicleDetail,
   VehicleListResponse,
@@ -26,6 +27,23 @@ export function useAdminVehicles() {
     return $fetch<VehicleDetail>(`/api/admin/vehicles/${id}`)
   }
 
+  // Export helper: pull every vehicle matching the filters by paging the backend.
+  // Same scoped BFF endpoint → still tenant-isolated. Backend caps take at 100.
+  async function fetchAll(filters: Record<string, unknown> = {}): Promise<Vehicle[]> {
+    const PAGE = 100
+    const all: Vehicle[] = []
+    let skip = 0
+    for (;;) {
+      const res = await $fetch<VehicleListResponse>('/api/admin/vehicles', {
+        query: { ...filters, take: PAGE, skip },
+      })
+      all.push(...res.items)
+      skip += PAGE
+      if (all.length >= res.total || res.items.length === 0) break
+    }
+    return all
+  }
+
   // Mutations — $fetch, triggered by submit/confirm.
   function create(body: VehicleCreatePayload) {
     return $fetch<VehicleDetail>('/api/admin/vehicles', { method: 'POST', body })
@@ -37,5 +55,5 @@ export function useAdminVehicles() {
     return $fetch<{ ok: true }>(`/api/admin/vehicles/${id}`, { method: 'DELETE' })
   }
 
-  return { list, get, create, update, remove }
+  return { list, get, fetchAll, create, update, remove }
 }

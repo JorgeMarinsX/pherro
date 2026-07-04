@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Vehicle, VehicleDetail } from '~/types/vehicle'
+import { FUEL_LABELS, TRANSMISSION_LABELS } from '~/types/vehicle'
+import type { ExportField } from '~/utils/export'
 
 definePageMeta({
   layout: 'admin',
@@ -17,7 +19,7 @@ const statusOptions = [
   { label: 'Inativos', value: 'INACTIVE' },
 ]
 
-const { list, get, update, remove } = useAdminVehicles()
+const { list, get, fetchAll, update, remove } = useAdminVehicles()
 const toast = useToast()
 
 const PAGE_SIZE = 24
@@ -64,6 +66,34 @@ const columns = [
 ]
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+const km = new Intl.NumberFormat('pt-BR')
+
+// --- Export ---
+const exportOpen = ref(false)
+
+// Filters (minus pagination) so the export matches the current view.
+function exportFilters(): Record<string, unknown> {
+  const q: Record<string, unknown> = {
+    status: statusFilter.value === 'all' ? 'ALL' : statusFilter.value,
+  }
+  if (search.value.trim()) q.q = search.value.trim()
+  return q
+}
+
+const statusLabel = (s: string) => (s === 'ACTIVE' ? 'Ativo' : 'Inativo')
+
+// Exportable columns (user picks a subset in ExportModal). pt-BR headers/values.
+const exportFields: ExportField<Vehicle>[] = [
+  { key: 'make', label: 'Marca' },
+  { key: 'model', label: 'Modelo' },
+  { key: 'year', label: 'Ano' },
+  { key: 'price', label: 'Preço', format: (v) => brl.format(v.price) },
+  { key: 'mileage', label: 'KM', format: (v) => km.format(v.mileage) },
+  { key: 'color', label: 'Cor' },
+  { key: 'transmission', label: 'Câmbio', format: (v) => TRANSMISSION_LABELS[v.transmission] },
+  { key: 'fuelType', label: 'Combustível', format: (v) => FUEL_LABELS[v.fuelType] },
+  { key: 'status', label: 'Status', format: (v) => statusLabel(v.status) },
+]
 
 // --- Create / edit modal ---
 const formOpen = ref(false)
@@ -146,6 +176,14 @@ async function confirmDelete() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-download"
+            label="Exportar"
+            :disabled="total === 0"
+            @click="exportOpen = true"
+          />
           <UButton
             color="primary"
             icon="i-lucide-plus"
@@ -285,6 +323,14 @@ async function confirmDelete() {
       </UCard>
 
       <AnuncioFormModal v-model:open="formOpen" :vehicle="editing" @submitted="refresh" />
+
+      <ExportModal
+        v-model:open="exportOpen"
+        title="Anúncios"
+        filename-base="anuncios"
+        :fields="exportFields"
+        :fetch-all="() => fetchAll(exportFilters())"
+      />
 
       <UModal v-model:open="deleteOpen" title="Excluir anúncio">
         <template #body>
