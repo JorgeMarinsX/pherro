@@ -127,6 +127,51 @@ export async function requireSession(event: H3Event): Promise<AdminSession> {
   return session
 }
 
+// ---- Demo tenant cookie (live demo on demo.*) ----
+// Session-scoped (no Max-Age): the visitor's demo tenant dies with the browser
+// window. Signed with the same secret — an unsigned tenant id would let anyone
+// point x-tenant-id at an arbitrary tenant.
+const DEMO_COOKIE = 'demo_tenant'
+
+export async function writeDemoTenant(event: H3Event, tenantId: string): Promise<void> {
+  const secret = getSecret(event)
+  const signature = await sign(tenantId, secret)
+  setCookie(event, DEMO_COOKIE, `${tenantId}.${signature}`, {
+    httpOnly: true,
+    secure: !import.meta.dev,
+    sameSite: 'lax',
+    path: '/',
+  })
+}
+
+export async function readDemoTenant(event: H3Event): Promise<string | null> {
+  const raw = getCookie(event, DEMO_COOKIE)
+  if (!raw) return null
+
+  const dot = raw.indexOf('.')
+  if (dot < 1) return null
+  const tenantId = raw.slice(0, dot)
+  const signature = raw.slice(dot + 1)
+  if (!tenantId || !signature) return null
+
+  let secret: string
+  try {
+    secret = getSecret(event)
+  } catch {
+    return null
+  }
+
+  const expected = await sign(tenantId, secret)
+  if (!timingSafeEqual(new TextEncoder().encode(signature), new TextEncoder().encode(expected))) {
+    return null
+  }
+  return tenantId
+}
+
+export function clearDemoTenant(event: H3Event): void {
+  deleteCookie(event, DEMO_COOKIE, { path: '/' })
+}
+
 // Cross-tenant surface guard: PLATFORM_ADMIN only (backend re-enforces via JWT role).
 export async function requirePlatformSession(event: H3Event): Promise<AdminSession> {
   const session = await requireSession(event)

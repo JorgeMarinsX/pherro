@@ -7,6 +7,7 @@ useSeoMeta({
 
 const config = useRuntimeConfig()
 const exampleHost = `sualoja.${config.public.appBaseDomain}`
+const { demoUrl } = useDemo()
 
 const features = [
   {
@@ -68,7 +69,7 @@ const steps = [
         class="absolute inset-0 opacity-60"
         style="background-image: radial-gradient(ellipse at top right, rgba(139,26,26,0.55) 0%, transparent 60%), radial-gradient(ellipse at bottom left, rgba(139,26,26,0.35) 0%, transparent 55%)"
       />
-      <UContainer class="relative py-20 sm:py-28 lg:py-32">
+      <UContainer class="relative py-10 sm:py-12">
         <div class="mx-auto max-w-3xl text-center">
           <UBadge
             color="neutral"
@@ -76,15 +77,21 @@ const steps = [
             label="Plataforma para revendas de veículos"
             class="mb-5 bg-white/10 text-white ring-1 ring-white/25 backdrop-blur"
           />
-          <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
             Sua revenda de veículos
             <span class="text-primary-300">online em minutos</span>
           </h1>
-          <p class="mx-auto mt-5 max-w-2xl text-base text-white/85 sm:text-lg">
+          <p class="mx-auto mt-4 max-w-2xl text-base text-white/85">
             Site próprio, gestão de estoque, leads e WhatsApp em um só lugar.
             Crie sua loja e comece a vender hoje — sem programador, sem instalação.
           </p>
-          <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <p class="mt-4 text-sm text-white/60">
+            Sua loja no ar em <span class="font-mono text-white/90">{{ exampleHost }}</span>
+          </p>
+          <p class="mt-6 text-lg font-semibold text-white">
+            Pronto para começar?
+          </p>
+          <div class="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <UButton
               to="/cadastro"
               color="primary"
@@ -94,17 +101,24 @@ const steps = [
               :ui="{ base: 'font-semibold' }"
             />
             <UButton
-              to="#recursos"
+              :to="demoUrl"
+              external
               color="neutral"
               variant="outline"
               size="xl"
-              label="Conhecer recursos"
-              class="text-white ring-white/40 hover:bg-white/10"
+              icon="i-lucide-monitor-play"
+              label="Testar demonstração ao vivo"
+              :ui="{ base: 'bg-white/10 text-white ring-2 ring-white/60 hover:bg-white/20 backdrop-blur' }"
             />
           </div>
-          <p class="mt-6 text-sm text-white/60">
-            Sua loja no ar em <span class="font-mono text-white/90">{{ exampleHost }}</span>
-          </p>
+          <UButton
+            to="#recursos"
+            color="neutral"
+            variant="link"
+            size="sm"
+            label="Conhecer recursos"
+            class="mt-4 text-white/70 hover:text-white"
+          />
         </div>
       </UContainer>
     </section>
@@ -123,12 +137,14 @@ const steps = [
         <div
           v-for="feature in features"
           :key="feature.title"
-          class="flex flex-col items-start gap-3 rounded-xl border border-neutral-200 p-6"
+          class="rounded-xl border border-neutral-200 p-6"
         >
-          <div class="rounded-lg bg-primary-100 p-3">
-            <UIcon :name="feature.icon" class="size-6 text-primary-600" />
+          <div class="mb-3 flex items-center gap-3">
+            <div class="rounded-lg bg-primary-100 p-3">
+              <UIcon :name="feature.icon" class="size-6 text-primary-600" />
+            </div>
+            <h3 class="text-lg font-semibold text-neutral-900">{{ feature.title }}</h3>
           </div>
-          <h3 class="text-lg font-semibold text-neutral-900">{{ feature.title }}</h3>
           <p class="text-sm text-neutral-600">{{ feature.text }}</p>
         </div>
       </div>
@@ -145,18 +161,30 @@ const steps = [
             Três passos entre você e sua loja online.
           </p>
         </div>
-        <div class="grid gap-6 sm:grid-cols-3">
+        <div class="relative grid gap-10 sm:grid-cols-3 sm:gap-6">
+          <!-- connector line between circles (desktop) -->
+          <div class="absolute left-1/6 right-1/6 top-5 hidden h-0.5 bg-primary-200 sm:block" aria-hidden="true" />
           <div
             v-for="step in steps"
             :key="step.number"
-            class="flex flex-col items-start gap-3"
+            class="relative flex flex-col items-center gap-3 text-center"
           >
-            <div class="flex size-10 items-center justify-center rounded-full bg-primary-600 text-lg font-bold text-white">
+            <div class="flex size-10 items-center justify-center rounded-full bg-primary-600 text-lg font-bold text-white ring-8 ring-neutral-50">
               {{ step.number }}
             </div>
             <h3 class="text-lg font-semibold text-neutral-900">{{ step.title }}</h3>
             <p class="text-sm text-neutral-600">{{ step.text }}</p>
           </div>
+        </div>
+        <div class="mt-10 flex justify-center">
+          <UButton
+            to="/cadastro"
+            color="primary"
+            size="lg"
+            icon="i-lucide-rocket"
+            label="Criar minha loja grátis"
+            :ui="{ base: 'font-semibold' }"
+          />
         </div>
       </UContainer>
     </section>
@@ -171,6 +199,13 @@ const steps = [
           Sem cartão de crédito. Planos pagos com mais recursos em breve.
         </p>
       </div>
+      <p class="mx-auto -mt-6 mb-10 max-w-2xl text-center text-sm text-neutral-600">
+        Quer ver antes de criar a conta?
+        <NuxtLink :to="demoUrl" external class="font-semibold text-primary-600 hover:underline">
+          Acesse a demonstração ao vivo
+        </NuxtLink>
+        — painel e site de uma loja fictícia, sem cadastro.
+      </p>
       <div class="mx-auto max-w-md">
         <UCard :ui="{ root: 'ring-2 ring-primary-600' }">
           <div class="flex flex-col items-center gap-4 p-2 text-center">
@@ -219,14 +254,26 @@ const steps = [
             Crie sua loja agora e publique seu primeiro veículo hoje mesmo.
           </p>
         </div>
-        <UButton
-          to="/cadastro"
-          color="neutral"
-          size="xl"
-          icon="i-lucide-rocket"
-          label="Começar grátis"
-          :ui="{ base: 'bg-white text-primary-700 hover:bg-neutral-100 font-semibold' }"
-        />
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <UButton
+            to="/cadastro"
+            color="neutral"
+            size="xl"
+            icon="i-lucide-rocket"
+            label="Começar grátis"
+            :ui="{ base: 'bg-white text-primary-700 hover:bg-neutral-100 font-semibold' }"
+          />
+          <UButton
+            :to="demoUrl"
+            external
+            color="neutral"
+            variant="outline"
+            size="xl"
+            icon="i-lucide-monitor-play"
+            label="Ver demonstração"
+            :ui="{ base: 'bg-primary-700 text-white ring-2 ring-white/70 hover:bg-primary-800' }"
+          />
+        </div>
       </UContainer>
     </section>
   </div>

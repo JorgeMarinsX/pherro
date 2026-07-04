@@ -11,10 +11,10 @@ import { UpdateTenantDto } from './dto/update-tenant.dto'
 
 // Subdomains that must never become tenant sites.
 const RESERVED_SLUGS = new Set([
-  'app', 'www', 'api', 'admin', 'platform', 'mail', 'smtp', 'static', 'cdn', 'assets', 'status',
+  'app', 'www', 'api', 'admin', 'platform', 'demo', 'mail', 'smtp', 'static', 'cdn', 'assets', 'status',
 ])
 
-const DEFAULT_ATTRIBUTES = [
+export const DEFAULT_ATTRIBUTES = [
   { name: 'Ar-condicionado', slug: 'ar-condicionado', icon: 'i-lucide-snowflake', type: 'BOOLEAN' },
   { name: 'Direção hidráulica', slug: 'direcao-hidraulica', icon: 'i-lucide-circle-dot', type: 'BOOLEAN' },
   { name: 'Vidros elétricos', slug: 'vidros-eletricos', icon: 'i-lucide-square-chevron-up', type: 'BOOLEAN' },

@@ -12,5 +12,6 @@ useHead({
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <DemoBanner />
   </UApp>
 </template>

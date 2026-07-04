@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import type { AuthRole } from '~~/shared/roles'
-import { clearSession, readSession, writeSession } from './session'
+import { isDemoHost } from '~~/shared/host'
+import { clearSession, readDemoTenant, readSession, writeSession } from './session'
 
 type BackendFetchOptions = Parameters<typeof $fetch>[1] & {
   admin?: boolean
@@ -41,6 +42,17 @@ export async function backendFetch<T = unknown>(
   if (event && !mergedHeaders['x-forwarded-for']) {
     const ip = getRequestIP(event, { xForwardedFor: true })
     if (ip) mergedHeaders['x-forwarded-for'] = ip
+  }
+
+  // Demo host: the tenant is per-browser-session (signed cookie), not per-host.
+  // x-tenant-id wins over host resolution on the backend (validated there).
+  if (event && !mergedHeaders['x-tenant-id']) {
+    const host = getRequestHost(event, { xForwardedHost: true })
+    if (host && isDemoHost(host)) {
+      const demoTenant =
+        (event.context.demoTenantId as string | undefined) ?? (await readDemoTenant(event))
+      if (demoTenant) mergedHeaders['x-tenant-id'] = demoTenant
+    }
   }
 
   if (admin) {

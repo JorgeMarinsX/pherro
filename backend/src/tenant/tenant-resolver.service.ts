@@ -33,9 +33,11 @@ export class TenantResolverService {
 
     // Dev fallback: localhost carries no tenant host — resolve the seeded tenant.
     // Platform hosts (app.*/www.*/bare base) stay tenant-less so platform login works.
+    // Demo hosts stay tenant-less too — their tenant comes from the BFF's x-tenant-id.
     if (
       !tenant &&
       !this.isPlatformHost(normalized) &&
+      !normalized.startsWith('demo.') &&
       process.env.NODE_ENV !== 'production' &&
       process.env.TENANT_SLUG
     ) {
@@ -73,7 +75,7 @@ export class TenantResolverService {
     const suffix = `.${base}`
     if (!host.endsWith(suffix)) return null
     const sub = host.slice(0, -suffix.length)
-    if (!sub || sub === 'app' || sub === 'www') return null
+    if (!sub || sub === 'app' || sub === 'www' || sub === 'demo') return null
     return sub
   }
 
