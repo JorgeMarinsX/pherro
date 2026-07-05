@@ -9,6 +9,7 @@ definePageMeta({
 const route = useRoute()
 const id = route.params.id as string
 const toast = useToast()
+const planUsage = usePlanUsageStore()
 
 const { data: campaign } = await useFetch<EmailCampaign>(`/api/admin/campaigns/${id}`)
 const { data: recipients } = await useFetch<RecipientsPreview>('/api/admin/campaigns/recipients-preview')
@@ -64,7 +65,11 @@ async function sendTest() {
     toast.add({ title: `E-mail de teste enviado para ${testTo.value}`, color: 'success' })
   } catch (e: unknown) {
     const message = (e as { data?: { message?: string } }).data?.message
-    toast.add({ title: message ?? 'Erro ao enviar teste', color: 'error' })
+    if ((e as { statusCode?: number })?.statusCode === 403) {
+      planUsage.showLimitDialog(message ?? 'Limite de e-mails do plano atingido.')
+    } else {
+      toast.add({ title: message ?? 'Erro ao enviar teste', color: 'error' })
+    }
   } finally {
     testing.value = false
   }
@@ -83,9 +88,15 @@ async function sendCampaign() {
       description: `${campaign.value.sentCount} e-mails enviados.`,
       color: 'success',
     })
+    void planUsage.fetchUsage()
   } catch (e: unknown) {
     const message = (e as { data?: { message?: string } }).data?.message
-    toast.add({ title: message ?? 'Erro ao enviar campanha', color: 'error' })
+    if ((e as { statusCode?: number })?.statusCode === 403) {
+      sendOpen.value = false
+      planUsage.showLimitDialog(message ?? 'Limite de e-mails do plano atingido.')
+    } else {
+      toast.add({ title: message ?? 'Erro ao enviar campanha', color: 'error' })
+    }
   } finally {
     sending.value = false
   }

@@ -3,6 +3,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma, VehicleStatus } from '@prisma/client'
 import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
+import { PlanLimitsService } from '../billing/plan-limits.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { ObjectStorage } from '../storage/object-storage'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
@@ -28,6 +29,7 @@ export class VehiclesService {
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly storage: ObjectStorage,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   // Best-effort: remove stored files for photos no longer referenced by any row.
@@ -188,6 +190,7 @@ export class VehiclesService {
   }
 
   async create(dto: CreateVehicleDto): Promise<VehicleDetailDto> {
+    await this.planLimits.assertCanCreateVehicle()
     // Nested creates bypass the extension's top-level inject — set tenantId explicitly.
     const tenantId = TenantContext.tenantId()!
     // Slug is immutable post-create. Retry on unique-constraint collision (P2002).

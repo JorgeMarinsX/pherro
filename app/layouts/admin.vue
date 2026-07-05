@@ -7,6 +7,9 @@ const shop = useShopConfigStore()
 const { shopName } = storeToRefs(shop)
 await callOnce('shop-config', () => shop.fetchConfig())
 
+const planUsage = usePlanUsageStore()
+await callOnce('plan-usage', () => planUsage.fetchUsage())
+
 const currentUser = computed(() => ({
   name: 'Administrador',
   email: email.value ?? 'admin@pherro.local',
@@ -16,6 +19,7 @@ async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   auth.$reset()
   shop.$reset()
+  planUsage.$reset()
   await navigateTo('/admin/login')
 }
 
@@ -108,6 +112,11 @@ const userMenu = computed(() => [
       </template>
     </UDashboardSidebar>
 
-    <slot />
+    <div class="flex min-w-0 flex-1 flex-col">
+      <PlanLimitBanner />
+      <slot />
+    </div>
+
+    <LimitReachedModal />
   </UDashboardGroup>
 </template>

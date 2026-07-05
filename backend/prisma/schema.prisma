@@ -39,6 +39,7 @@ model Tenant {
   leadVehicleInterests LeadVehicleInterest[]
   emailCampaigns       EmailCampaign[]
   campaignRecipients   CampaignRecipient[]
+  emailUsage           EmailUsage[]
 }
 
 enum DomainStatus {
@@ -290,6 +291,17 @@ model CampaignRecipient {
 
   @@unique([campaignId, email])
   @@index([tenantId, campaignId, status])
+}
+
+// Monthly e-mail send counter per tenant — plan quota enforcement (campaign/test sends).
+model EmailUsage {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period   String // "YYYY-MM" (UTC)
+  sent     Int    @default(0)
+
+  @@unique([tenantId, period])
 }
 
 enum CampaignStatus {

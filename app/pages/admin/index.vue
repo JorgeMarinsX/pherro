@@ -21,6 +21,28 @@ const stats = computed(() => [
   { label: 'Visualizações', value: '0', icon: 'i-lucide-eye', color: 'success' },
   { label: 'Conversas WhatsApp', value: '0', icon: 'i-lucide-message-circle', color: 'warning' },
 ])
+
+const planUsage = usePlanUsageStore()
+const { summary } = storeToRefs(planUsage)
+
+// Plan usage rows: used/limit + progress color by pressure.
+const usageRows = computed(() => {
+  if (!summary.value) return []
+  return (Object.keys(LIMIT_LABELS) as (keyof typeof LIMIT_LABELS)[]).map((kind) => {
+    const limit = planUsage.limitOf(kind)
+    const used = planUsage.usedOf(kind)
+    const ratio = planUsage.ratioOf(kind)
+    return {
+      kind,
+      label: LIMIT_LABELS[kind],
+      used,
+      limit,
+      pct: limit ? Math.min(100, Math.round(ratio * 100)) : 0,
+      color: (ratio >= 1 ? 'error' : ratio >= 0.8 ? 'warning' : 'primary') as 'error' | 'warning' | 'primary',
+    }
+  })
+})
+
 </script>
 
 <template>
@@ -31,13 +53,16 @@ const stats = computed(() => [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton
-            color="primary"
-            icon="i-lucide-plus"
-            label="Novo anúncio"
-            :ui="{ base: 'text-white' }"
-            @click="formOpen = true"
-          />
+          <UTooltip text="Limite de veículos do plano atingido" :disabled="!planUsage.atLimit('vehicles')">
+            <UButton
+              color="primary"
+              icon="i-lucide-plus"
+              label="Novo anúncio"
+              :ui="{ base: 'text-white' }"
+              :disabled="planUsage.atLimit('vehicles')"
+              @click="formOpen = true"
+            />
+          </UTooltip>
         </template>
       </UDashboardNavbar>
     </template>
@@ -57,6 +82,35 @@ const stats = computed(() => [
         </div>
       </UCard>
     </div>
+
+    <UCard v-if="usageRows.length">
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-highlighted">Uso do plano</h3>
+            <p class="text-sm text-muted">Plano atual: {{ summary?.label }}</p>
+          </div>
+          <UButton
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-arrow-up-right"
+            label="Ver planos"
+            to="/admin/plano"
+          />
+        </div>
+      </template>
+      <div class="grid gap-6 sm:grid-cols-3">
+        <div v-for="row in usageRows" :key="row.kind">
+          <div class="mb-2 flex items-baseline justify-between gap-2">
+            <span class="text-sm capitalize text-muted">{{ row.label }}</span>
+            <span class="text-sm font-medium text-highlighted">
+              {{ row.limit === null ? `${row.used} / Ilimitado` : `${row.used} / ${row.limit}` }}
+            </span>
+          </div>
+          <UProgress :model-value="row.pct" :max="100" :color="row.color" size="sm" />
+        </div>
+      </div>
+    </UCard>
 
     <div class="grid gap-6 lg:grid-cols-2">
       <UCard>

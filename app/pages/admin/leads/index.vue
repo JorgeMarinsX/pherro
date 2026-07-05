@@ -23,6 +23,8 @@ const sourceOptions = [
 ]
 
 const { list, fetchAll } = useAdminLeads()
+const planUsage = usePlanUsageStore()
+const atLeadLimit = computed(() => planUsage.atLimit('leads'))
 
 const PAGE_SIZE = 50
 const page = ref(1)
@@ -105,7 +107,9 @@ const exportFields: ExportField<Lead>[] = [
             :disabled="total === 0"
             @click="exportOpen = true"
           />
-          <UButton color="primary" icon="i-lucide-plus" label="Novo lead" :ui="{ base: 'text-white' }" @click="formOpen = true" />
+          <UTooltip text="Limite de leads do plano atingido" :disabled="!atLeadLimit">
+            <UButton color="primary" icon="i-lucide-plus" label="Novo lead" :ui="{ base: 'text-white' }" :disabled="atLeadLimit" @click="formOpen = true" />
+          </UTooltip>
         </template>
       </UDashboardNavbar>
 

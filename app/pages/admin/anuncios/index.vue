@@ -21,6 +21,8 @@ const statusOptions = [
 
 const { list, get, fetchAll, update, remove } = useAdminVehicles()
 const toast = useToast()
+const planUsage = usePlanUsageStore()
+const atVehicleLimit = computed(() => planUsage.atLimit('vehicles'))
 
 const PAGE_SIZE = 24
 const page = ref(1)
@@ -160,6 +162,7 @@ async function confirmDelete() {
     deleteOpen.value = false
     deleting.value = null
     await refresh()
+    void planUsage.fetchUsage()
   } catch {
     toast.add({ title: 'Não foi possível excluir o anúncio.', color: 'error' })
   } finally {
@@ -184,13 +187,16 @@ async function confirmDelete() {
             :disabled="total === 0"
             @click="exportOpen = true"
           />
-          <UButton
-            color="primary"
-            icon="i-lucide-plus"
-            label="Novo anúncio"
-            :ui="{ base: 'text-white' }"
-            @click="openCreate"
-          />
+          <UTooltip text="Limite de veículos do plano atingido" :disabled="!atVehicleLimit">
+            <UButton
+              color="primary"
+              icon="i-lucide-plus"
+              label="Novo anúncio"
+              :ui="{ base: 'text-white' }"
+              :disabled="atVehicleLimit"
+              @click="openCreate"
+            />
+          </UTooltip>
         </template>
       </UDashboardNavbar>
 
@@ -226,6 +232,7 @@ async function confirmDelete() {
             label="Novo anúncio"
             class="mt-5"
             :ui="{ base: 'text-white' }"
+            :disabled="atVehicleLimit"
             @click="openCreate"
           />
         </div>

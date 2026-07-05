@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Prisma, type Lead } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
+import { PlanLimitsService } from '../billing/plan-limits.service'
 import { EmailTemplatesService } from '../email/email-templates.service'
 import { tenantUrl } from '../email/tenant-urls'
 import { PrismaService } from '../prisma/prisma.service'
@@ -16,9 +17,11 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailTemplatesService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   async create(dto: CreateLeadDto): Promise<LeadDto> {
+    await this.planLimits.assertCanCreateLead()
     // Nested creates bypass the extension's top-level inject — set tenantId explicitly.
     const tenantId = TenantContext.tenantId()!
     const lead = await this.prisma.scoped.lead.create({

@@ -69,6 +69,7 @@ const statusOptions = [
 
 const { create, update } = useAdminVehicles()
 const toast = useToast()
+const planUsage = usePlanUsageStore()
 const loading = ref(false)
 
 // Attribute definitions for the attach section. Hydrate once when the modal opens.
@@ -175,8 +176,15 @@ async function onSubmit() {
     toast.add({ title: 'Anúncio salvo', color: 'success' })
     emit('submitted')
     open.value = false
+    void planUsage.fetchUsage()
   } catch (e) {
-    toast.add({ title: errorMessage(e), color: 'error' })
+    // Quota 403 → dedicated limit dialog (with upgrade CTA) instead of a toast.
+    if ((e as { statusCode?: number })?.statusCode === 403) {
+      planUsage.showLimitDialog(errorMessage(e))
+      void planUsage.fetchUsage()
+    } else {
+      toast.add({ title: errorMessage(e), color: 'error' })
+    }
   } finally {
     loading.value = false
   }

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import type { EmailCampaign } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
+import { PlanLimitsService } from '../billing/plan-limits.service'
 import { CAMPAIGN_VARIABLES, DEFAULT_CAMPAIGN_HTML } from '../email/default-templates'
 import { ResendService, RESEND_BATCH_LIMIT } from '../email/resend.service'
 import { renderHtml, renderText, type TemplateVars } from '../email/template-renderer'
@@ -24,6 +25,7 @@ export class CampaignsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly resend: ResendService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   async list() {
@@ -75,15 +77,18 @@ export class CampaignsService {
     this.requireConfigured()
     const campaign = await this.requireCampaign(id)
     this.requireContent(campaign)
+    await this.planLimits.assertCanSendEmails(1)
     const vars: TemplateVars = {
       ...Object.fromEntries(CAMPAIGN_VARIABLES.map((v) => [v.key, v.sample])),
       SHOP_NAME: await this.shopName(),
     }
-    return this.resend.sendEmail({
+    const result = await this.resend.sendEmail({
       to,
       subject: `[TESTE] ${renderText(campaign.subject, vars)}`,
       html: renderHtml(campaign.html, vars),
     })
+    await this.planLimits.recordEmailsSent(1)
+    return result
   }
 
   async send(id: string): Promise<CampaignDto> {
@@ -98,6 +103,7 @@ export class CampaignsService {
     if (recipients.length === 0) {
       throw new BadRequestException('Nenhum lead com e-mail cadastrado')
     }
+    await this.planLimits.assertCanSendEmails(recipients.length)
 
     const tenantId = TenantContext.tenantId()!
     const shopName = await this.shopName()
@@ -147,6 +153,8 @@ export class CampaignsService {
         failed += chunk.length
       }
     }
+
+    await this.planLimits.recordEmailsSent(sent)
 
     const updated = await this.prisma.scoped.emailCampaign.update({
       where: { id },
