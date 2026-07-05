@@ -6,9 +6,11 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common'
 import { AdminOnly } from '../auth/decorators/admin-only.decorator'
 import { Public } from '../auth/decorators/public.decorator'
+import { ActiveTenantGuard } from '../tenant/active-tenant.guard'
 import { CreateWhatsappNumberDto } from './dto/create-whatsapp-number.dto'
 import { UpdateWhatsappNumberDto } from './dto/update-whatsapp-number.dto'
 import { WhatsappNumbersService } from './whatsapp-numbers.service'
@@ -18,6 +20,7 @@ export class WhatsappNumbersController {
   constructor(private readonly service: WhatsappNumbersService) {}
 
   @Public()
+  @UseGuards(ActiveTenantGuard)
   @Get()
   list() {
     return this.service.list()
@@ -25,6 +28,7 @@ export class WhatsappNumbersController {
 
   // Storefront helper reads the single active number from here.
   @Public()
+  @UseGuards(ActiveTenantGuard)
   @Get('active')
   getActive() {
     return this.service.getActive()

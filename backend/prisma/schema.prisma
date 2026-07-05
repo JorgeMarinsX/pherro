@@ -50,6 +50,7 @@ enum DomainStatus {
 
 enum TenantStatus {
   ACTIVE
+  PENDING_PAYMENT // self-signup awaiting first paid invoice; storefront dark until paid
   SUSPENDED
 }
 

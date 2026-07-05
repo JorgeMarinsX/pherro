@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { PLANS, PAID_PLAN_IDS, formatBrl } from '~~/shared/plans'
+
+const paidPlans = PAID_PLAN_IDS.map((id) => PLANS[id]!)
+
 useSeoMeta({
   title: 'Pherro — Sua revenda de veículos online em minutos',
   description:
-    'Crie o site da sua revenda de veículos em minutos: estoque, anúncios, leads e WhatsApp em um só lugar. Comece grátis.',
+    'Crie o site da sua revenda de veículos em minutos: estoque, anúncios, leads e WhatsApp em um só lugar. Escolha seu plano e comece a vender.',
 })
 
 const config = useRuntimeConfig()
@@ -93,11 +97,11 @@ const steps = [
           </p>
           <div class="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <UButton
-              to="/cadastro"
+              to="#planos"
               color="primary"
               size="xl"
               icon="i-lucide-rocket"
-              label="Criar minha loja grátis"
+              label="Ver planos e assinar"
               :ui="{ base: 'font-semibold' }"
             />
             <UButton
@@ -178,11 +182,11 @@ const steps = [
         </div>
         <div class="mt-10 flex justify-center">
           <UButton
-            to="/cadastro"
+            to="#planos"
             color="primary"
             size="lg"
             icon="i-lucide-rocket"
-            label="Criar minha loja grátis"
+            label="Escolher meu plano"
             :ui="{ base: 'font-semibold' }"
           />
         </div>
@@ -190,57 +194,62 @@ const steps = [
     </section>
 
     <!-- Pricing -->
-    <UContainer as="section" class="py-14 sm:py-20">
+    <UContainer id="planos" as="section" class="py-14 sm:py-20">
       <div class="mx-auto mb-10 max-w-2xl text-center">
         <h2 class="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
-          Comece grátis
+          Planos para cada tamanho de revenda
         </h2>
         <p class="mt-2 text-sm text-neutral-600 sm:text-base">
-          Sem cartão de crédito. Planos pagos com mais recursos em breve.
+          Escolha o plano da sua revenda e comece a vender. Pague com Pix, boleto ou cartão.
         </p>
       </div>
       <p class="mx-auto -mt-6 mb-10 max-w-2xl text-center text-sm text-neutral-600">
-        Quer ver antes de criar a conta?
+        Quer ver antes de assinar?
         <NuxtLink :to="demoUrl" external class="font-semibold text-primary-600 hover:underline">
           Acesse a demonstração ao vivo
         </NuxtLink>
         — painel e site de uma loja fictícia, sem cadastro.
       </p>
-      <div class="mx-auto max-w-md">
-        <UCard :ui="{ root: 'ring-2 ring-primary-600' }">
-          <div class="flex flex-col items-center gap-4 p-2 text-center">
-            <UBadge color="primary" variant="subtle" label="Plano gratuito" />
-            <p class="text-4xl font-extrabold text-neutral-900">
-              R$ 0<span class="text-base font-medium text-neutral-500">/mês</span>
+
+      <div class="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
+        <!-- Paid tiers -->
+        <UCard
+          v-for="plan in paidPlans"
+          :key="plan.id"
+          :ui="{ root: plan.highlight ? 'ring-2 ring-primary-600' : '' }"
+        >
+          <div class="flex h-full flex-col gap-4 p-1">
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="text-lg font-bold text-neutral-900">{{ plan.label }}</h3>
+                <p class="text-sm text-neutral-500">{{ plan.tagline }}</p>
+              </div>
+              <UBadge v-if="plan.highlight" color="primary" variant="subtle" label="Mais popular" />
+            </div>
+            <p class="text-3xl font-extrabold text-neutral-900">
+              {{ formatBrl(plan.monthlyCents) }}<span class="text-sm font-medium text-neutral-500">/mês</span>
             </p>
-            <ul class="space-y-2 text-sm text-neutral-700">
-              <li class="flex items-center gap-2">
-                <UIcon name="i-lucide-check" class="size-4 text-primary-600" />
-                Site da loja com endereço próprio
-              </li>
-              <li class="flex items-center gap-2">
-                <UIcon name="i-lucide-check" class="size-4 text-primary-600" />
-                Anúncios de veículos ilimitados
-              </li>
-              <li class="flex items-center gap-2">
-                <UIcon name="i-lucide-check" class="size-4 text-primary-600" />
-                Captura de leads com WhatsApp
-              </li>
-              <li class="flex items-center gap-2">
-                <UIcon name="i-lucide-check" class="size-4 text-primary-600" />
-                Painel administrativo completo
+            <ul class="flex-1 space-y-2 text-sm text-neutral-700">
+              <li v-for="f in plan.features" :key="f" class="flex items-start gap-2">
+                <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-primary-600" />
+                {{ f }}
               </li>
             </ul>
             <UButton
-              to="/cadastro"
-              color="primary"
+              :to="`/cadastro?plan=${plan.id}`"
+              :color="plan.highlight ? 'primary' : 'neutral'"
+              :variant="plan.highlight ? 'solid' : 'outline'"
               size="lg"
               block
-              label="Criar minha loja"
+              :label="`Assinar ${plan.label}`"
             />
           </div>
         </UCard>
       </div>
+      <p class="mt-6 text-center text-xs text-neutral-500">
+        A cobrança é mensal e você escolhe a forma de pagamento (Pix, boleto ou cartão) na hora de assinar.
+        Sua loja fica no ar assim que o primeiro pagamento é confirmado.
+      </p>
     </UContainer>
 
     <!-- Final CTA -->
@@ -251,16 +260,16 @@ const steps = [
             Pronto para colocar sua revenda online?
           </h2>
           <p class="mt-2 text-white/90">
-            Crie sua loja agora e publique seu primeiro veículo hoje mesmo.
+            Escolha seu plano e publique seu primeiro veículo hoje mesmo.
           </p>
         </div>
         <div class="flex flex-col gap-3 sm:flex-row">
           <UButton
-            to="/cadastro"
+            to="#planos"
             color="neutral"
             size="xl"
             icon="i-lucide-rocket"
-            label="Começar grátis"
+            label="Ver planos"
             :ui="{ base: 'bg-white text-primary-700 hover:bg-neutral-100 font-semibold' }"
           />
           <UButton

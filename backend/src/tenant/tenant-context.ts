@@ -5,6 +5,9 @@ export type TenantStore = {
   isPlatformAdmin: boolean
   // GUC already bound to an outer tx → extension skips its per-op tx wrap.
   inTenantTx: boolean
+  // Resolved tenant lifecycle status. PENDING_PAYMENT tenants get a context (so their
+  // admin can log in and pay) but the public storefront stays gated — see ActiveTenantGuard.
+  status: 'ACTIVE' | 'PENDING_PAYMENT' | 'SUSPENDED' | null
 }
 
 const als = new AsyncLocalStorage<TenantStore>()
@@ -28,6 +31,10 @@ export const TenantContext = {
     return als.getStore()?.tenantId ?? null
   },
 
+  status(): TenantStore['status'] {
+    return als.getStore()?.status ?? null
+  },
+
   isPlatformAdmin(): boolean {
     return als.getStore()?.isPlatformAdmin ?? false
   },
@@ -49,5 +56,10 @@ export const TenantContext = {
   setInTenantTx(value: boolean): void {
     const s = als.getStore()
     if (s) s.inTenantTx = value
+  },
+
+  setStatus(value: TenantStore['status']): void {
+    const s = als.getStore()
+    if (s) s.status = value
   },
 }

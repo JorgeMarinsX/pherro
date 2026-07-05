@@ -13,6 +13,6 @@ export class SignupController {
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post()
   signup(@Body() dto: SignupDto) {
-    return this.service.create({ ...dto, plan: 'free' })
+    return this.service.signup(dto)
   }
 }

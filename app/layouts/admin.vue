@@ -29,6 +29,7 @@ const links = ref([
     { label: 'WhatsApp', icon: 'i-lucide-message-circle', to: '/admin/whatsapp' },
   ],
   [
+    { label: 'Plano e cobrança', icon: 'i-lucide-credit-card', to: '/admin/plano' },
     { label: 'Configurações', icon: 'i-lucide-settings', to: '/admin/configuracoes' },
     { label: 'Ver site', icon: 'i-lucide-external-link', to: '/', target: '_blank' },
   ],

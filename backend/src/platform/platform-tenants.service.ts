@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { plainToInstance } from 'class-transformer'
 import { BillingService } from '../billing/billing.service'
@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { TenantResolverService } from '../tenant/tenant-resolver.service'
 import { UsersService } from '../users/users.service'
 import { CreateTenantDto } from './dto/create-tenant.dto'
+import { SignupDto } from './dto/signup.dto'
 import { TenantDto } from './dto/tenant.dto'
 import { UpdateTenantDto } from './dto/update-tenant.dto'
 
@@ -27,6 +28,8 @@ export const DEFAULT_ATTRIBUTES = [
 
 @Injectable()
 export class PlatformTenantsService {
+  private readonly logger = new Logger(PlatformTenantsService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly resolver: TenantResolverService,
@@ -45,30 +48,95 @@ export class PlatformTenantsService {
     return plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true })
   }
 
-  // Provisioning: tenant row + seeded defaults, one atomic tx. No deploy needed.
+  // Platform-admin provisioning: tenant row + seeded defaults, active immediately.
   async create(dto: CreateTenantDto): Promise<TenantDto> {
-    const slug = dto.slug.toLowerCase()
+    const tenant = await this.provision({
+      slug: dto.slug,
+      name: dto.name,
+      adminEmail: dto.adminEmail,
+      adminPassword: dto.adminPassword,
+      cpfCnpj: dto.cpfCnpj ?? null,
+      plan: dto.plan ?? 'free',
+      status: 'ACTIVE',
+    })
+    // Post-commit, best-effort: billing provider link never blocks provisioning.
+    await this.billing.ensureCustomerForTenant({
+      tenantId: tenant.id,
+      name: tenant.name,
+      cpfCnpj: tenant.cpfCnpj,
+      email: dto.adminEmail.toLowerCase(),
+    })
+    await this.sendWelcome(tenant, dto.adminEmail)
+    return plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true })
+  }
+
+  // Public self-service signup: paid plan only. Tenant is provisioned PENDING_PAYMENT
+  // (storefront dark) and a subscription is created; it goes ACTIVE on the payment
+  // webhook. Returns the Asaas invoice URL so the frontend can send the owner to pay.
+  async signup(dto: SignupDto): Promise<TenantDto & { invoiceUrl: string | null }> {
+    const tenant = await this.provision({
+      slug: dto.slug,
+      name: dto.name,
+      adminEmail: dto.adminEmail,
+      adminPassword: dto.adminPassword,
+      cpfCnpj: dto.cpfCnpj,
+      plan: dto.plan,
+      status: 'PENDING_PAYMENT',
+    })
+
+    // Create the subscription now so the owner can pay right away. Unconfigured Asaas
+    // throws BadRequest (checkout disabled) — surfaced to the caller; the tenant already
+    // exists PENDING and can be paid later once billing is configured.
+    let invoiceUrl: string | null = null
+    try {
+      const res = await this.billing.subscribeTenant(tenant.id, dto.plan)
+      invoiceUrl = res.invoiceUrl
+    } catch (e) {
+      this.logger.error(`Signup ${tenant.slug}: subscription creation failed`, e as Error)
+    }
+
+    await this.sendWelcome(tenant, dto.adminEmail)
+    return { ...plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true }), invoiceUrl }
+  }
+
+  // Shared tenant + defaults provisioning in one atomic tx.
+  private async provision(input: {
+    slug: string
+    name: string
+    adminEmail: string
+    adminPassword: string
+    cpfCnpj: string | null
+    plan: string
+    status: 'ACTIVE' | 'PENDING_PAYMENT'
+  }) {
+    const slug = input.slug.toLowerCase()
     if (RESERVED_SLUGS.has(slug)) {
       throw new ConflictException('Slug reservado pela plataforma')
     }
     // Hash outside the tx — argon2id is intentionally slow (~100ms).
-    const passwordHash = await UsersService.hash(dto.adminPassword)
+    const passwordHash = await UsersService.hash(input.adminPassword)
 
     try {
-      const tenant = await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx) => {
         const created = await tx.tenant.create({
-          data: { slug, name: dto.name, plan: dto.plan ?? 'free', cpfCnpj: dto.cpfCnpj ?? null },
+          data: {
+            slug,
+            name: input.name,
+            plan: input.plan,
+            cpfCnpj: input.cpfCnpj,
+            status: input.status,
+          },
         })
         // Owned rows sit behind FORCE RLS — bind the new tenant's GUC to this tx.
         await tx.$executeRaw`SELECT set_config('app.current_tenant', ${created.id}, true)`
 
         await tx.shopConfig.create({
-          data: { tenantId: created.id, shopName: dto.name },
+          data: { tenantId: created.id, shopName: input.name },
         })
         await tx.user.create({
           data: {
             tenantId: created.id,
-            email: dto.adminEmail.toLowerCase(),
+            email: input.adminEmail.toLowerCase(),
             passwordHash,
             role: 'ADMIN',
           },
@@ -78,28 +146,22 @@ export class PlatformTenantsService {
         })
         return created
       })
-      // Post-commit, best-effort: billing provider link never blocks provisioning.
-      await this.billing.ensureCustomerForTenant({
-        tenantId: tenant.id,
-        name: tenant.name,
-        cpfCnpj: tenant.cpfCnpj,
-        email: dto.adminEmail.toLowerCase(),
-      })
-      if (tenant.plan !== 'demo') {
-        await this.email.sendTransactional('welcome', dto.adminEmail.toLowerCase(), {
-          FIRST_NAME: tenant.name,
-          SHOP_NAME: tenant.name,
-          EMAIL: dto.adminEmail.toLowerCase(),
-          LOGIN_URL: tenantUrl(slug, '/admin'),
-        })
-      }
-      return plainToInstance(TenantDto, tenant, { excludeExtraneousValues: true })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('Slug já em uso')
       }
       throw e
     }
+  }
+
+  private async sendWelcome(tenant: { name: string; slug: string; plan: string }, adminEmail: string) {
+    if (tenant.plan === 'demo') return
+    await this.email.sendTransactional('welcome', adminEmail.toLowerCase(), {
+      FIRST_NAME: tenant.name,
+      SHOP_NAME: tenant.name,
+      EMAIL: adminEmail.toLowerCase(),
+      LOGIN_URL: tenantUrl(tenant.slug, '/admin'),
+    })
   }
 
   async update(id: string, dto: UpdateTenantDto): Promise<TenantDto> {

@@ -1,14 +1,29 @@
 <script setup lang="ts">
+import { PLANS, formatBrl, isPaidPlan } from '~~/shared/plans'
+
 definePageMeta({ layout: 'landing' })
 
 useSeoMeta({
   title: 'Criar minha loja — Pherro',
-  description: 'Crie a loja online da sua revenda de veículos em minutos. Grátis para começar.',
+  description: 'Crie a loja online da sua revenda de veículos em minutos. Escolha seu plano e comece a vender.',
 })
 
 const config = useRuntimeConfig()
 const url = useRequestURL()
+const route = useRoute()
 const toast = useToast()
+
+// A plan must be chosen on the landing page (?plan=inicio|profissional|rede). There is no
+// free tier — without a valid plan there is nothing to sign up for, so bounce to pricing.
+const planId = computed(() => {
+  const p = typeof route.query.plan === 'string' ? route.query.plan : ''
+  return isPaidPlan(p) ? p : ''
+})
+const selectedPlan = computed(() => (planId.value ? PLANS[planId.value]! : null))
+
+if (!planId.value) {
+  await navigateTo('/#planos')
+}
 
 const state = reactive({
   name: '',
@@ -46,7 +61,10 @@ function validate(s: typeof state) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.adminEmail)) {
     errors.push({ name: 'adminEmail', message: 'Informe um e-mail válido.' })
   }
-  if (s.cpfCnpj && !/^\d{11}$|^\d{14}$/.test(s.cpfCnpj.replace(/\D/g, ''))) {
+  const cpfDigits = s.cpfCnpj.replace(/\D/g, '')
+  if (!cpfDigits) {
+    errors.push({ name: 'cpfCnpj', message: 'CPF ou CNPJ é obrigatório para assinar o plano.' })
+  } else if (!/^\d{11}$|^\d{14}$/.test(cpfDigits)) {
     errors.push({ name: 'cpfCnpj', message: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.' })
   }
   if (s.adminPassword.length < 8) {
@@ -59,7 +77,7 @@ function validate(s: typeof state) {
 }
 
 const submitting = ref(false)
-const created = ref<{ slug: string } | null>(null)
+const created = ref<{ slug: string; invoiceUrl: string | null } | null>(null)
 
 // New tenant lives on its own host — build links off the current origin (keeps dev port).
 const port = url.port ? `:${url.port}` : ''
@@ -67,21 +85,29 @@ const createdSiteUrl = computed(() =>
   created.value ? `${url.protocol}//${created.value.slug}.${config.public.appBaseDomain}${port}` : '',
 )
 const createdAdminUrl = computed(() => (created.value ? `${createdSiteUrl.value}/admin/login` : ''))
+// Fallback when the invoice link wasn't returned (billing not yet configured): send the
+// owner to the plan page, which retries the subscription (guarded → login → checkout).
+const createdCheckoutUrl = computed(() =>
+  created.value && planId.value
+    ? `${createdSiteUrl.value}/admin/login?redirect=${encodeURIComponent(`/admin/plano?plan=${planId.value}`)}`
+    : '',
+)
 
 async function onSubmit() {
   submitting.value = true
   try {
-    const tenant = await $fetch<{ slug: string }>('/api/platform/signup', {
+    const tenant = await $fetch<{ slug: string; invoiceUrl: string | null }>('/api/platform/signup', {
       method: 'POST',
       body: {
         name: state.name.trim(),
         slug: state.slug,
         adminEmail: state.adminEmail,
         adminPassword: state.adminPassword,
-        ...(cpfCnpjDigits.value ? { cpfCnpj: cpfCnpjDigits.value } : {}),
+        cpfCnpj: cpfCnpjDigits.value,
+        plan: planId.value,
       },
     })
-    created.value = { slug: tenant.slug }
+    created.value = { slug: tenant.slug, invoiceUrl: tenant.invoiceUrl }
   } catch (err: unknown) {
     const message =
       (err as { data?: { statusMessage?: string } })?.data?.statusMessage ??
@@ -101,33 +127,49 @@ async function onSubmit() {
         <UIcon name="i-lucide-party-popper" class="size-10 text-primary-600" />
       </div>
       <h1 class="mt-6 text-3xl font-extrabold tracking-tight text-neutral-900">
-        Sua loja está no ar!
+        Conta criada! Falta o pagamento.
       </h1>
       <p class="mt-3 text-neutral-600">
-        Acesse o painel administrativo com o e-mail e a senha que você cadastrou
-        e publique seu primeiro veículo.
+        Sua loja <strong>{{ selectedPlan?.label }}</strong> fica ativa assim que o primeiro
+        pagamento for confirmado. Escolha como pagar (Pix, boleto ou cartão).
       </p>
       <div class="mt-8 space-y-3">
         <UButton
-          :to="createdAdminUrl"
+          v-if="created.invoiceUrl"
+          :to="created.invoiceUrl"
+          external
+          target="_blank"
+          color="primary"
+          size="xl"
+          block
+          icon="i-lucide-credit-card"
+          label="Pagar agora"
+        />
+        <UButton
+          v-else
+          :to="createdCheckoutUrl"
           external
           color="primary"
           size="xl"
           block
-          icon="i-lucide-layout-dashboard"
-          label="Acessar painel administrativo"
+          icon="i-lucide-credit-card"
+          label="Ir para o pagamento"
         />
         <UButton
-          :to="createdSiteUrl"
+          :to="createdAdminUrl"
           external
           color="neutral"
           variant="outline"
           size="xl"
           block
-          icon="i-lucide-globe"
-          :label="`Ver minha loja (${created.slug}.${config.public.appBaseDomain})`"
+          icon="i-lucide-layout-dashboard"
+          label="Acessar painel administrativo"
         />
       </div>
+      <p class="mt-6 text-xs text-neutral-500">
+        Após o pagamento sua loja fica no ar em
+        <span class="font-mono">{{ created.slug }}.{{ config.public.appBaseDomain }}</span>.
+      </p>
     </div>
 
     <!-- Form -->
@@ -137,9 +179,25 @@ async function onSubmit() {
           Criar minha loja
         </h1>
         <p class="mt-2 text-sm text-neutral-600">
-          Grátis para começar. Sua loja no ar em
+          Sua loja no ar em
           <span class="font-mono text-neutral-900">{{ siteHost }}</span>
         </p>
+      </div>
+
+      <div
+        v-if="selectedPlan"
+        class="mb-6 flex items-center justify-between gap-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3"
+      >
+        <div class="flex items-center gap-2 text-sm text-neutral-700">
+          <UIcon name="i-lucide-badge-check" class="size-5 shrink-0 text-primary-600" />
+          <span>
+            Plano <strong>{{ selectedPlan.label }}</strong> —
+            {{ formatBrl(selectedPlan.monthlyCents) }}/mês. Pagamento após criar a conta.
+          </span>
+        </div>
+        <NuxtLink to="/#planos" class="shrink-0 text-xs text-primary-600 hover:underline">
+          trocar
+        </NuxtLink>
       </div>
 
       <UCard>
@@ -185,7 +243,8 @@ async function onSubmit() {
           <UFormField
             label="CPF ou CNPJ"
             name="cpfCnpj"
-            help="Opcional agora. Necessário para assinar um plano pago."
+            required
+            help="Necessário para emitir a cobrança do plano."
           >
             <UInput
               v-model="state.cpfCnpj"

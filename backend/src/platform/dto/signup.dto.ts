@@ -1,6 +1,8 @@
-import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator'
+import { IsEmail, IsIn, IsString, Length, Matches, MinLength } from 'class-validator'
+import { PAID_PLAN_IDS } from '../../billing/plans'
 
-// Self-service signup: same shape as CreateTenantDto minus `plan` (always free).
+// Self-service signup: paid plans only. A store is provisioned PENDING_PAYMENT and goes
+// live once the first invoice is paid (webhook). CPF/CNPJ is mandatory to bill.
 export class SignupDto {
   // DNS-label safe: lowercase alnum + inner hyphens (→ <slug>.APP_BASE_DOMAIN).
   @IsString()
@@ -20,8 +22,11 @@ export class SignupDto {
   @MinLength(8)
   adminPassword!: string
 
-  // Billing document (CPF 11 / CNPJ 14 digits). Optional — enables billing later.
-  @IsOptional()
+  // Billing document (CPF 11 / CNPJ 14 digits) — required: every signup is billed.
   @Matches(/^\d{11}$|^\d{14}$/, { message: 'CPF/CNPJ deve ter 11 ou 14 dígitos (apenas números)' })
-  cpfCnpj?: string
+  cpfCnpj!: string
+
+  // Chosen paid plan — no free tier on self-signup.
+  @IsIn(PAID_PLAN_IDS as unknown as string[], { message: 'Escolha um plano válido' })
+  plan!: string
 }

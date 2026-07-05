@@ -11,20 +11,28 @@ export class TenantMiddleware implements NestMiddleware {
   constructor(private readonly resolver: TenantResolverService) {}
 
   async use(req: Req, _res: unknown, next: () => void): Promise<void> {
-    const tenantId = await this.resolve(req)
+    const resolved = await this.resolve(req)
     // enterWith, not run(): with Fastify/middie the handler runs outside next()'s scope.
-    TenantContext.enterWith({ tenantId, isPlatformAdmin: false, inTenantTx: false })
+    // PENDING_PAYMENT tenants keep a context so their admin can log in and pay; the
+    // public storefront is blocked separately by ActiveTenantGuard. SUSPENDED stays dark.
+    TenantContext.enterWith({
+      tenantId: resolved?.id ?? null,
+      status: resolved?.status ?? null,
+      isPlatformAdmin: false,
+      inTenantTx: false,
+    })
     next()
   }
 
-  private async resolve(req: Req): Promise<string | null> {
-    // S2S/dev escape hatch — still validated (must exist + be ACTIVE).
+  private async resolve(req: Req): Promise<{ id: string; status: 'ACTIVE' | 'PENDING_PAYMENT' } | null> {
+    // S2S/dev escape hatch — still validated (must exist).
     const headerId = this.header(req, 'x-tenant-id')
     const tenant = headerId
       ? await this.resolver.resolveById(headerId)
       : await this.resolveFromHost(req)
-    if (!tenant || tenant.status !== 'ACTIVE') return null
-    return tenant.id
+    // ACTIVE + PENDING_PAYMENT resolve; SUSPENDED (and unknown) get no context.
+    if (!tenant || (tenant.status !== 'ACTIVE' && tenant.status !== 'PENDING_PAYMENT')) return null
+    return { id: tenant.id, status: tenant.status }
   }
 
   private async resolveFromHost(req: Req) {
