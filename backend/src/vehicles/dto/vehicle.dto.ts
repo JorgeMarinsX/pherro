@@ -3,6 +3,7 @@ import { Expose, Type } from 'class-transformer'
 export class VehiclePhotoDto {
   @Expose() id!: string
   @Expose() url!: string
+  @Expose() thumbUrl!: string | null
   @Expose() position!: number
 }
 

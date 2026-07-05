@@ -97,7 +97,7 @@ const whatsappHref = computed(() =>
                 ? 'ring-2 ring-primary-600'
                 : 'ring-neutral-200 hover:ring-neutral-400'
             "
-            :style="{ backgroundImage: `url('${photo.url}')`, backgroundSize: 'cover', backgroundPosition: 'center' }"
+            :style="{ backgroundImage: `url('${photo.thumbUrl ?? photo.url}')`, backgroundSize: 'cover', backgroundPosition: 'center' }"
             :aria-label="`Foto ${Number(idx) + 1}`"
             @click="activePhotoIdx = idx"
           />

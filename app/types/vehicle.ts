@@ -8,7 +8,23 @@ export type VehicleStatus = 'ACTIVE' | 'INACTIVE'
 export interface VehiclePhoto {
   id: string
   url: string
+  thumbUrl?: string | null
   position: number
+}
+
+// Result of POST /api/admin/uploads/vehicle-photos (one entry per file).
+export interface UploadedPhoto {
+  url: string
+  thumbUrl: string
+  width: number
+  height: number
+  bytes: number
+}
+
+// Photo entry held in the form before submit. Position = array index.
+export interface VehiclePhotoInput {
+  url: string
+  thumbUrl?: string | null
 }
 
 export interface Vehicle {
@@ -44,6 +60,7 @@ export interface VehicleFormState {
   fuelType: FuelType
   status: VehicleStatus
   description: string
+  photos: VehiclePhotoInput[]
   attributes: VehicleAttributeInput[]
 }
 
@@ -114,7 +131,7 @@ export interface VehicleCreatePayload {
   fuelType: FuelType
   status?: VehicleStatus
   whatsappNumberId?: string | null
-  photos?: { url: string; position: number }[]
+  photos?: { url: string; thumbUrl?: string | null; position: number }[]
   attributes?: { attributeDefinitionId: string; value: string }[]
 }
 

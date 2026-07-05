@@ -4,6 +4,7 @@ import { Prisma, VehicleStatus } from '@prisma/client'
 import type { Cache } from 'cache-manager'
 import { plainToInstance } from 'class-transformer'
 import { PrismaService } from '../prisma/prisma.service'
+import { ObjectStorage } from '../storage/object-storage'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
 import {
   ListVehiclesDto,
@@ -26,7 +27,19 @@ export class VehiclesService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly storage: ObjectStorage,
   ) {}
+
+  // Best-effort: remove stored files for photos no longer referenced by any row.
+  // External URLs (seed/demo data) map to no key and are skipped.
+  private async deletePhotoFiles(photos: { url: string; thumbUrl: string | null }[]) {
+    const keys = photos
+      .flatMap((p) => [p.url, p.thumbUrl])
+      .filter((u): u is string => Boolean(u))
+      .map((u) => this.storage.keyFromUrl(u))
+      .filter((k): k is string => Boolean(k))
+    await Promise.all(keys.map((k) => this.storage.delete(k).catch(() => {})))
+  }
 
   async list(q: ListVehiclesDto) {
     const where: Prisma.VehicleWhereInput = {}
@@ -83,7 +96,7 @@ export class VehiclesService {
           photos: {
             orderBy: { position: 'asc' },
             take: 1,
-            select: { id: true, url: true, position: true },
+            select: { id: true, url: true, thumbUrl: true, position: true },
           },
         },
       }),
@@ -198,7 +211,14 @@ export class VehiclesService {
             status: (dto.status as VehicleStatus | undefined) ?? undefined,
             whatsappNumberId: dto.whatsappNumberId ?? null,
             photos: dto.photos?.length
-              ? { create: dto.photos.map((p) => ({ tenantId, url: p.url, position: p.position })) }
+              ? {
+                  create: dto.photos.map((p) => ({
+                    tenantId,
+                    url: p.url,
+                    thumbUrl: p.thumbUrl ?? null,
+                    position: p.position,
+                  })),
+                }
               : undefined,
             attributes: dto.attributes?.length
               ? {
@@ -252,6 +272,14 @@ export class VehiclesService {
 
     const { photos, attributes, ...scalar } = dto
 
+    // Snapshot current photo files so we can GC the ones the update drops.
+    const oldPhotos = photos
+      ? await this.prisma.scoped.vehiclePhoto.findMany({
+          where: { vehicleId: id },
+          select: { url: true, thumbUrl: true },
+        })
+      : []
+
     await this.prisma.runInTenantTx(async (tx) => {
       await tx.vehicle.update({ where: { id }, data: scalar })
 
@@ -259,7 +287,12 @@ export class VehiclesService {
         await tx.vehiclePhoto.deleteMany({ where: { vehicleId: id } })
         if (photos.length) {
           await tx.vehiclePhoto.createMany({
-            data: photos.map((p) => ({ vehicleId: id, url: p.url, position: p.position })),
+            data: photos.map((p) => ({
+              vehicleId: id,
+              url: p.url,
+              thumbUrl: p.thumbUrl ?? null,
+              position: p.position,
+            })),
           })
         }
       }
@@ -278,6 +311,11 @@ export class VehiclesService {
       }
     })
 
+    if (photos) {
+      const kept = new Set(photos.map((p) => p.url))
+      await this.deletePhotoFiles(oldPhotos.filter((p) => !kept.has(p.url)))
+    }
+
     await this.cache.del(cacheKey(id))
     await this.cache.del(slugCacheKey(exists.slug))
     return this.findOne(id)
@@ -286,10 +324,11 @@ export class VehiclesService {
   async remove(id: string) {
     const exists = await this.prisma.scoped.vehicle.findFirst({
       where: { id },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, photos: { select: { url: true, thumbUrl: true } } },
     })
     if (!exists) throw new NotFoundException(`Vehicle ${id} not found.`)
     await this.prisma.scoped.vehicle.delete({ where: { id } })
+    await this.deletePhotoFiles(exists.photos)
     await this.cache.del(cacheKey(id))
     await this.cache.del(slugCacheKey(exists.slug))
     return { ok: true }

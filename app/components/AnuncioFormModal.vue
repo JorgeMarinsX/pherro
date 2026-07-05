@@ -25,6 +25,7 @@ function blankState(): VehicleFormState {
     fuelType: 'FLEX',
     status: 'ACTIVE',
     description: '',
+    photos: [],
     attributes: [],
   }
 }
@@ -41,6 +42,9 @@ function fromVehicle(v: VehicleDetail): VehicleFormState {
     fuelType: v.fuelType,
     status: v.status,
     description: v.description ?? '',
+    photos: [...(v.photos ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map(p => ({ url: p.url, thumbUrl: p.thumbUrl ?? null })),
     attributes: (v.attributes ?? []).map(a => ({
       attributeDefinitionId: a.attributeDefinition.id,
       value: a.value,
@@ -121,6 +125,11 @@ function buildPayload(): VehicleCreatePayload {
     transmission: state.transmission,
     fuelType: state.fuelType,
     status: state.status,
+    photos: state.photos.map((p, i) => ({
+      url: p.url,
+      thumbUrl: p.thumbUrl ?? null,
+      position: i,
+    })),
     attributes: state.attributes
       .filter((a: VehicleAttributeInput) => a.value.trim())
       .map((a: VehicleAttributeInput) => ({
@@ -211,6 +220,10 @@ async function onSubmit() {
             <USelect v-model="state.status" :items="statusOptions" value-key="value" class="w-full" />
           </UFormField>
         </div>
+
+        <UFormField label="Fotos" name="photos">
+          <PhotoUploader v-model="state.photos" />
+        </UFormField>
 
         <UFormField label="Descrição" name="description">
           <UTextarea v-model="state.description" :rows="5" placeholder="Detalhes do veículo..." class="w-full" />

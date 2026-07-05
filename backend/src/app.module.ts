@@ -14,10 +14,12 @@ import { LeadsModule } from './leads/leads.module'
 import { PlatformModule } from './platform/platform.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { ShopConfigModule } from './shop-config/shop-config.module'
+import { StorageModule } from './storage/storage.module'
 import { RequestLoggingInterceptor } from './tenant/request-logging.interceptor'
 import { TenantMiddleware } from './tenant/tenant.middleware'
 import { TenantThrottlerGuard } from './tenant/tenant-throttler.guard'
 import { TenantModule } from './tenant/tenant.module'
+import { UploadsModule } from './uploads/uploads.module'
 import { UsersModule } from './users/users.module'
 import { VehiclesModule } from './vehicles/vehicles.module'
 import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.module'
@@ -30,6 +32,8 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
       { name: 'default', ttl: 60_000, limit: 60 },
     ]),
     PrismaModule,
+    StorageModule,
+    UploadsModule,
     BillingModule,
     TenantModule,
     UsersModule,

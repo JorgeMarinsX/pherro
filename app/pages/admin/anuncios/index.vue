@@ -251,7 +251,7 @@ async function confirmDelete() {
           <template #photo-cell="{ row }">
             <img
               v-if="row.original.photos?.[0]?.url"
-              :src="row.original.photos[0].url"
+              :src="row.original.photos[0].thumbUrl ?? row.original.photos[0].url"
               :alt="`${row.original.make} ${row.original.model}`"
               class="size-12 rounded-md object-cover"
             >

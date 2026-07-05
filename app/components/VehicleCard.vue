@@ -16,9 +16,10 @@ const formattedMileage = computed(() =>
   new Intl.NumberFormat('pt-BR').format(props.vehicle.mileage),
 )
 
-const cover = computed(() =>
-  [...(props.vehicle.photos ?? [])].sort((a, b) => a.position - b.position)[0]?.url,
-)
+const cover = computed(() => {
+  const first = [...(props.vehicle.photos ?? [])].sort((a, b) => a.position - b.position)[0]
+  return first?.thumbUrl ?? first?.url
+})
 </script>
 
 <template>

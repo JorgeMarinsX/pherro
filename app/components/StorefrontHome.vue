@@ -111,7 +111,7 @@ const formatPrice = (price: number) =>
                   >
                     <div
                       class="size-12 shrink-0 rounded-md bg-neutral-100 bg-cover bg-center ring-1 ring-neutral-200"
-                      :style="vehicle.photos?.[0]?.url ? { backgroundImage: `url('${vehicle.photos[0].url}')` } : undefined"
+                      :style="vehicle.photos?.[0] ? { backgroundImage: `url('${vehicle.photos[0].thumbUrl ?? vehicle.photos[0].url}')` } : undefined"
                     />
                     <div class="min-w-0 flex-1">
                       <p class="truncate text-sm font-semibold text-neutral-900">

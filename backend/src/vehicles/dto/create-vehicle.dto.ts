@@ -16,6 +16,7 @@ import { VehicleStatusInput } from './vehicle-status.enum'
 
 export class CreateVehiclePhotoDto {
   @IsString() @MaxLength(1000) url!: string
+  @IsOptional() @IsString() @MaxLength(1000) thumbUrl?: string | null
   @IsInt() @Min(0) position!: number
 }
 

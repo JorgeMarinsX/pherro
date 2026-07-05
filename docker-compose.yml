@@ -76,9 +76,13 @@ services:
       RESEND_FROM: ${RESEND_FROM:-Pherro <onboarding@resend.dev>}
       # Absolute-URL building in e-mails (scheme/port; host comes from APP_BASE_DOMAIN).
       SITE_URL: ${SITE_URL:-http://localhost:3000}
+      # Vehicle photo storage (local-disk driver; S3/CDN driver later).
+      UPLOADS_DIR: /app/uploads
+      UPLOAD_TRANSFORM_CONCURRENCY: ${UPLOAD_TRANSFORM_CONCURRENCY:-4}
     volumes:
       - ./backend:/app
       - backend-node-modules:/app/node_modules
+      - uploads-data:/app/uploads
     ports:
       - "3001:3001"
     command: >
@@ -115,3 +119,4 @@ volumes:
   db-data:
   app-node-modules:
   backend-node-modules:
+  uploads-data:
