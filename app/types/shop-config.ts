@@ -9,6 +9,9 @@ export interface ShopConfig {
   id: string
   shopName: string
   logoUrl: string | null
+  heroImageUrl: string | null
+  faviconUrl: string | null
+  primaryColor: string | null
   description: string | null
   address: string | null
   whatsappNumbers: ShopConfigWhatsapp[]
@@ -28,22 +31,29 @@ export interface ShopConfigWhatsapp {
 export interface PublicShopConfig {
   shopName: string
   logoUrl: string | null
+  heroImageUrl: string | null
+  faviconUrl: string | null
+  primaryColor: string | null
   description: string | null
   address: string | null
 }
+
+// Branding image kinds handled by POST/DELETE /api/admin/uploads/branding/:kind.
+// Image URLs are NOT part of the PATCH payload — the upload endpoints own them.
+export type BrandingKind = 'logo' | 'hero' | 'favicon'
 
 // Editable fields for the admin Configurações form. Sent explicitly to the BFF
 // (never spread raw — forbidNonWhitelisted 400s on extras).
 export interface ShopConfigFormState {
   shopName: string
-  logoUrl: string
+  primaryColor: string
   description: string
   address: string
 }
 
 export type ShopConfigUpdatePayload = Partial<{
   shopName: string
-  logoUrl: string | null
+  primaryColor: string | null
   description: string | null
   address: string | null
 }>

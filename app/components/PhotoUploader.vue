@@ -17,29 +17,6 @@ const progress = ref<{ done: number; total: number } | null>(null)
 const dragging = ref(false)
 const inputEl = ref<HTMLInputElement | null>(null)
 
-// Downscale + re-encode to WebP in the browser (phone JPEGs are 3–8 MB; this
-// sends ~10x less). Any failure (e.g. undecodable format) falls back to the
-// original file — the server validates for real.
-async function compressForUpload(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-    const scale = Math.min(1, CLIENT_MAX_EDGE / Math.max(bitmap.width, bitmap.height))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return file
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-    bitmap.close()
-    const blob = await new Promise<Blob | null>(resolve =>
-      canvas.toBlob(resolve, 'image/webp', CLIENT_WEBP_QUALITY),
-    )
-    return blob && blob.size < file.size ? blob : file
-  } catch {
-    return file
-  }
-}
-
 async function handleFiles(files: File[]) {
   if (!files.length || uploading.value) return
 
@@ -58,7 +35,7 @@ async function handleFiles(files: File[]) {
   try {
     const prepared: Blob[] = []
     for (const file of files) {
-      const blob = await compressForUpload(file)
+      const blob = await compressImageForUpload(file, CLIENT_MAX_EDGE, CLIENT_WEBP_QUALITY)
       if (blob.size > MAX_FILE_BYTES) {
         toast.add({ title: `"${file.name}" excede 10 MB.`, color: 'error' })
         continue

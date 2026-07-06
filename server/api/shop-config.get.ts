@@ -13,6 +13,9 @@ export default defineEventHandler(async (event): Promise<PublicShopConfig> => {
   return {
     shopName: cfg.shopName,
     logoUrl: cfg.logoUrl,
+    heroImageUrl: cfg.heroImageUrl,
+    faviconUrl: cfg.faviconUrl,
+    primaryColor: cfg.primaryColor,
     description: cfg.description,
     address: cfg.address,
   }

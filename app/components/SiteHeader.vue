@@ -1,8 +1,7 @@
 <script setup lang="ts">
 const shop = useShopConfigStore()
 const { shopName, logoUrl } = storeToRefs(shop)
-// Public config — safe on the storefront. Hydrated once SSR-side.
-await callOnce('shop-config', () => shop.fetchConfig())
+// Config hydrated by the default layout (callOnce 'shop-config').
 
 const items = ref([
   { label: 'Início', to: '/', icon: 'i-lucide-home' },

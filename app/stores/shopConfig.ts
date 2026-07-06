@@ -11,6 +11,9 @@ const DEFAULT_SHOP_NAME = 'Pherro'
 export const useShopConfigStore = defineStore('shopConfig', () => {
   const shopName = ref<string>(DEFAULT_SHOP_NAME)
   const logoUrl = ref<string | null>(null)
+  const heroImageUrl = ref<string | null>(null)
+  const faviconUrl = ref<string | null>(null)
+  const primaryColor = ref<string | null>(null)
   const description = ref<string | null>(null)
   const address = ref<string | null>(null)
   const loaded = ref(false)
@@ -19,6 +22,9 @@ export const useShopConfigStore = defineStore('shopConfig', () => {
     // Fall back to the default name so the UI never renders an empty brand.
     shopName.value = cfg.shopName?.trim() || DEFAULT_SHOP_NAME
     logoUrl.value = cfg.logoUrl
+    heroImageUrl.value = cfg.heroImageUrl
+    faviconUrl.value = cfg.faviconUrl
+    primaryColor.value = cfg.primaryColor
     description.value = cfg.description
     address.value = cfg.address
     loaded.value = true
@@ -35,10 +41,25 @@ export const useShopConfigStore = defineStore('shopConfig', () => {
   function $reset() {
     shopName.value = DEFAULT_SHOP_NAME
     logoUrl.value = null
+    heroImageUrl.value = null
+    faviconUrl.value = null
+    primaryColor.value = null
     description.value = null
     address.value = null
     loaded.value = false
   }
 
-  return { shopName, logoUrl, description, address, loaded, apply, fetchConfig, $reset }
+  return {
+    shopName,
+    logoUrl,
+    heroImageUrl,
+    faviconUrl,
+    primaryColor,
+    description,
+    address,
+    loaded,
+    apply,
+    fetchConfig,
+    $reset,
+  }
 })

@@ -10,6 +10,8 @@ import { UpdateShopConfigDto } from './dto/update-shop-config.dto'
 const cacheKey = () => `t:${TenantContext.tenantId() ?? 'none'}:shop-config:current`
 const CACHE_TTL_MS = 60_000
 
+export type BrandingField = 'logoUrl' | 'heroImageUrl' | 'faviconUrl'
+
 @Injectable()
 export class ShopConfigService {
   constructor(
@@ -44,5 +46,20 @@ export class ShopConfigService {
 
     await this.cache.del(cacheKey())
     return plainToInstance(ShopConfigDto, updated, { excludeExtraneousValues: true })
+  }
+
+  /** Swap a branding image URL; returns the replaced URL so the caller can delete the old file. */
+  async setBrandingUrl(field: BrandingField, url: string | null): Promise<string | null> {
+    const existing = await this.prisma.scoped.shopConfig.findFirst({
+      select: { id: true, [field]: true },
+    })
+    if (!existing) throw new NotFoundException('ShopConfig not seeded.')
+
+    await this.prisma.scoped.shopConfig.update({
+      where: { id: existing.id },
+      data: { [field]: url },
+    })
+    await this.cache.del(cacheKey())
+    return (existing as Record<string, string | null>)[field] ?? null
   }
 }

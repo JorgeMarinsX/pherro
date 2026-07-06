@@ -12,6 +12,9 @@ export class ShopConfigDto {
   @Expose() id!: string
   @Expose() shopName!: string
   @Expose() logoUrl!: string | null
+  @Expose() heroImageUrl!: string | null
+  @Expose() faviconUrl!: string | null
+  @Expose() primaryColor!: string | null
   @Expose() description!: string | null
   @Expose() address!: string | null
 

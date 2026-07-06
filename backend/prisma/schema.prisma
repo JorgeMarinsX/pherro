@@ -106,6 +106,9 @@ model ShopConfig {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shopName        String
   logoUrl         String?
+  heroImageUrl    String?
+  faviconUrl      String?
+  primaryColor    String?
   description     String?          @db.Text
   address         String?
   createdAt       DateTime         @default(now())

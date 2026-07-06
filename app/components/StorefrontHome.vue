@@ -19,6 +19,14 @@ const { data: list } = await useFetch<{
 
 const vehicles = computed<Vehicle[]>(() => list.value?.items ?? [])
 
+// Custom hero image with tenant-color gradient overlay; static default otherwise.
+const shop = useShopConfigStore()
+const heroStyle = computed(() => ({
+  backgroundImage: `linear-gradient(135deg, color-mix(in srgb, var(--color-primary-950) 85%, transparent) 0%, color-mix(in srgb, var(--color-primary-600) 70%, transparent) 100%), url('${shop.heroImageUrl ?? '/hero.jpg'}')`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+}))
+
 // Storefront WhatsApp CTAs route through the single ACTIVE number.
 const { urlFor } = useWhatsapp()
 const whatsappCtaHref = computed(
@@ -40,11 +48,7 @@ const formatPrice = (price: number) =>
   <div>
     <section
       class="relative isolate z-10 bg-primary-900"
-      :style="{
-        backgroundImage: `linear-gradient(135deg, rgba(43,7,7,0.85) 0%, rgba(139,26,26,0.7) 100%), url('/hero.jpg')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }"
+      :style="heroStyle"
     >
       <UContainer class="py-20 sm:py-28 lg:py-32">
         <div class="mx-auto max-w-3xl text-center">

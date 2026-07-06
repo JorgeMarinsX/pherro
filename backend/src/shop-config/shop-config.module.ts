@@ -5,5 +5,6 @@ import { ShopConfigService } from './shop-config.service'
 @Module({
   controllers: [ShopConfigController],
   providers: [ShopConfigService],
+  exports: [ShopConfigService],
 })
 export class ShopConfigModule {}
