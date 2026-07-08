@@ -146,6 +146,13 @@ export class UsersService {
     await this.prisma.scoped.user.delete({ where: { id } })
   }
 
+  // Reset-token path: no JWT context — GUC set explicitly, like the auth lookups.
+  async updatePassword(id: string, tenantId: string, passwordHash: string): Promise<void> {
+    await this.inTenant(tenantId, (tx) =>
+      tx.user.update({ where: { id }, data: { passwordHash } }),
+    )
+  }
+
   // Tenant user: GUC set explicitly (login predates scoping). Best-effort.
   async touchLastLogin(id: string, tenantId: string): Promise<void> {
     await this.inTenant(tenantId, (tx) =>

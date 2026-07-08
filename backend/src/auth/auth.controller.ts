@@ -15,11 +15,17 @@ import { LocalAuthGuard } from './guards/local-auth.guard'
 import { LoginDto } from './dto/login.dto'
 import { LogoutDto } from './dto/logout.dto'
 import { RefreshDto } from './dto/refresh.dto'
+import { ForgotPasswordDto } from './dto/forgot-password.dto'
+import { ResetPasswordDto } from './dto/reset-password.dto'
+import { PasswordRecoveryService } from './password-recovery.service'
 import type { AuthUser } from './types'
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly recovery: PasswordRecoveryService,
+  ) {}
 
   @Public()
   @UseGuards(LocalAuthGuard)
@@ -43,6 +49,24 @@ export class AuthController {
   @HttpCode(204)
   async logout(@Body() dto: LogoutDto) {
     if (dto.refreshToken) await this.auth.revokeRefreshToken(dto.refreshToken)
+  }
+
+  // Fire-and-forget: 204 before any lookup/send, so timing never reveals
+  // whether the e-mail belongs to an account.
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post('forgot-password')
+  @HttpCode(204)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    void this.recovery.request(dto.email.toLowerCase())
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  @HttpCode(204)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.recovery.reset(dto.token, dto.password)
   }
 
   @Get('me')

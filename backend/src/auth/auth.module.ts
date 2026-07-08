@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
+import { EmailModule } from '../email/email.module'
 import { PrismaModule } from '../prisma/prisma.module'
 import { UsersModule } from '../users/users.module'
 import { AuthController } from './auth.controller'
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { LocalAuthGuard } from './guards/local-auth.guard'
 import { RolesGuard } from './guards/roles.guard'
 import { LockoutService } from './lockout.service'
+import { PasswordRecoveryService } from './password-recovery.service'
 import { RefreshTokenService } from './refresh-token.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { LocalStrategy } from './strategies/local.strategy'
@@ -21,6 +23,7 @@ import { LocalStrategy } from './strategies/local.strategy'
   imports: [
     PrismaModule,
     UsersModule,
+    EmailModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -36,6 +39,7 @@ import { LocalStrategy } from './strategies/local.strategy'
     AuthService,
     RefreshTokenService,
     LockoutService,
+    PasswordRecoveryService,
     JwtStrategy,
     LocalStrategy,
     JwtAuthGuard,

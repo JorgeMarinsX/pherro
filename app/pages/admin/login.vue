@@ -72,6 +72,12 @@ async function onSubmit() {
         />
       </UFormField>
 
+      <div class="text-right text-sm">
+        <NuxtLink to="/admin/esqueci-senha" class="text-muted hover:text-primary-400">
+          Esqueceu a senha?
+        </NuxtLink>
+      </div>
+
       <UButton
         type="submit"
         color="primary"

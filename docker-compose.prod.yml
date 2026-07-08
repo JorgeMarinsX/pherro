@@ -138,6 +138,8 @@ services:
       # Per-email login lockout (failures before lock / rolling window).
       AUTH_LOCKOUT_MAX: ${AUTH_LOCKOUT_MAX:-10}
       AUTH_LOCKOUT_WINDOW_MS: ${AUTH_LOCKOUT_WINDOW_MS:-900000}
+      # Password reset link lifetime (single-use token, Redis-backed).
+      AUTH_RESET_TTL_MS: ${AUTH_RESET_TTL_MS:-3600000}
       # Billing (Asaas). Empty key = billing disabled (fail-open for signup).
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
