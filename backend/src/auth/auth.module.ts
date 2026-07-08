@@ -12,6 +12,8 @@ import { AdminTokenGuard } from './guards/admin-token.guard'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { LocalAuthGuard } from './guards/local-auth.guard'
 import { RolesGuard } from './guards/roles.guard'
+import { LockoutService } from './lockout.service'
+import { RefreshTokenService } from './refresh-token.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { LocalStrategy } from './strategies/local.strategy'
 
@@ -32,6 +34,8 @@ import { LocalStrategy } from './strategies/local.strategy'
   ],
   providers: [
     AuthService,
+    RefreshTokenService,
+    LockoutService,
     JwtStrategy,
     LocalStrategy,
     JwtAuthGuard,

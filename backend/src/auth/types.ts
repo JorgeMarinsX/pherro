@@ -14,6 +14,9 @@ export type JwtPayload = {
   role: AuthRole
   tenantId: string | null
   typ?: 'refresh'
+  // Refresh only: token family + the one-time id rotated on every refresh.
+  fid?: string
+  jti?: string
   iat?: number
   exp?: number
 }

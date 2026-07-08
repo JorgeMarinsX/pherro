@@ -49,9 +49,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: development
       PORT: 3001
+      REDIS_URL: redis://redis:6379
       # Runtime = non-superuser role (superusers bypass RLS). Migrations = postgres.
       DATABASE_URL: postgresql://app_runtime:${APP_DB_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}?schema=public
       MIGRATE_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}?schema=public
@@ -67,6 +70,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # Per-email login lockout (failures before lock / rolling window).
+      AUTH_LOCKOUT_MAX: ${AUTH_LOCKOUT_MAX:-10}
+      AUTH_LOCKOUT_WINDOW_MS: ${AUTH_LOCKOUT_WINDOW_MS:-900000}
       # Billing (Asaas). Empty key = billing disabled, signup still works.
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
@@ -94,6 +100,20 @@ services:
         bun --bun --watch run src/main.ts
       "
 
+  # ── Redis (auth: refresh rotation, lockout, throttle counters) ────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # noeviction: auth state must never be silently dropped under memory pressure.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   # ── Postgres ───────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
@@ -117,6 +137,7 @@ services:
 
 volumes:
   db-data:
+  redis-data:
   app-node-modules:
   backend-node-modules:
   uploads-data:

@@ -120,9 +120,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3001
+      REDIS_URL: redis://redis:6379
       # Runtime = non-superuser role (superusers bypass RLS). Migrations = postgres.
       DATABASE_URL: postgresql://app_runtime:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}?schema=public
       MIGRATE_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}?schema=public
@@ -132,6 +135,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # Per-email login lockout (failures before lock / rolling window).
+      AUTH_LOCKOUT_MAX: ${AUTH_LOCKOUT_MAX:-10}
+      AUTH_LOCKOUT_WINDOW_MS: ${AUTH_LOCKOUT_WINDOW_MS:-900000}
       # Billing (Asaas). Empty key = billing disabled (fail-open for signup).
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
@@ -147,6 +153,23 @@ services:
       PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD}
     networks:
       - internal
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    mem_limit: 192m
+    # noeviction: auth state (refresh families, lockouts) must never be evicted.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     logging: *logging
 
   db:
@@ -179,4 +202,5 @@ networks:
 
 volumes:
   db-data:
+  redis-data:
   traefik-acme:

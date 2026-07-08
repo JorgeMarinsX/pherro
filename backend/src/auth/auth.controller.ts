@@ -13,6 +13,7 @@ import { CurrentUser } from './decorators/current-user.decorator'
 import { Public } from './decorators/public.decorator'
 import { LocalAuthGuard } from './guards/local-auth.guard'
 import { LoginDto } from './dto/login.dto'
+import { LogoutDto } from './dto/logout.dto'
 import { RefreshDto } from './dto/refresh.dto'
 import type { AuthUser } from './types'
 
@@ -40,8 +41,8 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(204)
-  logout() {
-    return
+  async logout(@Body() dto: LogoutDto) {
+    if (dto.refreshToken) await this.auth.revokeRefreshToken(dto.refreshToken)
   }
 
   @Get('me')
