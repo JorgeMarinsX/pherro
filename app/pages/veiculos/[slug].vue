@@ -52,6 +52,30 @@ const { urlFor } = useWhatsapp()
 const whatsappHref = computed(() =>
   urlFor(`Olá! Tenho interesse no ${v.make} ${v.model} ${v.year}.`),
 )
+
+// Lead-capture gate: quick form before the WhatsApp CTA reveals. Once a
+// visitor passes it, skip the form on later clicks (per-origin = per-tenant).
+const LEAD_GATE_KEY = 'pherro:lead-captured'
+const gateOpen = ref(false)
+
+function onWhatsappClick() {
+  if (!whatsappHref.value) return
+  let captured = false
+  try {
+    captured = Boolean(localStorage.getItem(LEAD_GATE_KEY))
+  } catch { /* storage blocked → always gate */ }
+  if (captured) {
+    window.open(whatsappHref.value, '_blank', 'noopener')
+  } else {
+    gateOpen.value = true
+  }
+}
+
+function onLeadCaptured() {
+  try {
+    localStorage.setItem(LEAD_GATE_KEY, new Date().toISOString())
+  } catch { /* non-fatal */ }
+}
 </script>
 
 <template>
@@ -157,14 +181,12 @@ const whatsappHref = computed(() =>
 
         <UButton
           v-if="whatsappHref"
-          :to="whatsappHref"
-          target="_blank"
-          rel="noopener"
           size="xl"
           icon="i-simple-icons-whatsapp"
           label="Falar no WhatsApp"
           block
           class="mt-8 bg-neutral-900 text-white hover:bg-neutral-800"
+          @click="onWhatsappClick"
         />
         <UButton
           v-else
@@ -179,5 +201,14 @@ const whatsappHref = computed(() =>
 
       </div>
     </div>
+
+    <LeadCaptureModal
+      v-if="whatsappHref"
+      v-model:open="gateOpen"
+      :vehicle-id="v.id"
+      :vehicle-label="`${v.make} ${v.model} ${v.year}`"
+      :whatsapp-href="whatsappHref"
+      @captured="onLeadCaptured"
+    />
   </UContainer>
 </template>

@@ -12,6 +12,7 @@ const CLIENT_MAX_EDGE = 2000
 const CLIENT_WEBP_QUALITY = 0.85
 
 const toast = useToast()
+const planUsage = usePlanUsageStore()
 const uploading = ref(false)
 const progress = ref<{ done: number; total: number } | null>(null)
 const dragging = ref(false)
@@ -59,10 +60,14 @@ async function handleFiles(files: File[]) {
     }
   } catch (e) {
     const msg = (e as { data?: { message?: string | string[] } })?.data?.message
-    toast.add({
-      title: Array.isArray(msg) ? msg.join(' ') : msg || 'Falha ao enviar as fotos.',
-      color: 'error',
-    })
+    const text = Array.isArray(msg) ? msg.join(' ') : msg || 'Falha ao enviar as fotos.'
+    // Storage-quota 403 → dedicated limit dialog (with upgrade CTA).
+    if ((e as { statusCode?: number })?.statusCode === 403) {
+      planUsage.showLimitDialog(text)
+      void planUsage.fetchUsage()
+    } else {
+      toast.add({ title: text, color: 'error' })
+    }
   } finally {
     uploading.value = false
     progress.value = null

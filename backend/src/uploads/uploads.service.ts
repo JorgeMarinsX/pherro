@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, Logger, PayloadTooLargeException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, Logger, PayloadTooLargeException } from '@nestjs/common'
 import type { FastifyRequest } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
+import { PlanLimitsService, type PhotoStorageBudget } from '../billing/plan-limits.service'
 import { ShopConfigService, type BrandingField } from '../shop-config/shop-config.service'
 import { ObjectStorage } from '../storage/object-storage'
 import { TenantContext } from '../tenant/tenant-context'
@@ -70,6 +71,7 @@ export class UploadsService {
   constructor(
     private readonly storage: ObjectStorage,
     private readonly shopConfig: ShopConfigService,
+    private readonly planLimits: PlanLimitsService,
   ) {}
 
   async processBrandingImage(kind: BrandingKind, req: FastifyRequest): Promise<{ url: string }> {
@@ -150,6 +152,10 @@ export class UploadsService {
     const tenantId = TenantContext.tenantId()
     if (!tenantId) throw new BadRequestException('Tenant não identificado.')
 
+    // Plan storage quota: snapshot once, drain as this batch stores files.
+    const budget = await this.planLimits.photoStorageBudget()
+    this.assertStorageAvailable(budget, 0)
+
     const results: UploadedPhotoDto[] = []
     for await (const part of req.parts()) {
       if (part.type !== 'file') continue
@@ -159,14 +165,27 @@ export class UploadsService {
       if (part.file.truncated) {
         throw new PayloadTooLargeException('Cada imagem deve ter no máximo 10 MB.')
       }
-      results.push(await transformSlots.run(() => this.transformAndStore(tenantId, buffer)))
+      results.push(await transformSlots.run(() => this.transformAndStore(tenantId, buffer, budget)))
     }
 
     if (!results.length) throw new BadRequestException('Nenhuma imagem enviada.')
     return results
   }
 
-  private async transformAndStore(tenantId: string, input: Buffer): Promise<UploadedPhotoDto> {
+  private assertStorageAvailable(budget: PhotoStorageBudget, pendingBytes: number) {
+    if (budget.quotaBytes === null) return
+    if (budget.usedBytes + pendingBytes > budget.quotaBytes) {
+      throw new ForbiddenException(
+        `Limite de armazenamento de fotos do seu plano atingido (${Math.round(budget.quotaBytes / (1024 * 1024))} MB). Exclua fotos antigas ou faça upgrade.`,
+      )
+    }
+  }
+
+  private async transformAndStore(
+    tenantId: string,
+    input: Buffer,
+    budget: PhotoStorageBudget,
+  ): Promise<UploadedPhotoDto> {
     await this.assertValidImage(input)
 
     const base = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).rotate()
@@ -182,6 +201,9 @@ export class UploadsService {
         .webp({ quality: 75 })
         .toBuffer({ resolveWithObject: true }),
     ])
+
+    this.assertStorageAvailable(budget, main.data.length + thumb.data.length)
+    budget.usedBytes += main.data.length + thumb.data.length
 
     const id = randomUUID()
     const mainKey = `vehicle-photos/${tenantId}/${id}.webp`

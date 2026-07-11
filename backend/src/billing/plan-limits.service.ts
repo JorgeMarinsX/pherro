@@ -1,20 +1,31 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { ObjectStorage } from '../storage/object-storage'
 import { TenantContext } from '../tenant/tenant-context'
 import { PLANS, type Plan, type PlanLimits } from './plans'
+
+const MB = 1024 * 1024
 
 export interface PlanUsageSummary {
   plan: string
   label: string
   limits: PlanLimits
-  usage: { vehicles: number; leads: number; emailsPerMonth: number }
+  usage: { vehicles: number; leads: number; emailsPerMonth: number; storageMb: number }
+}
+
+export interface PhotoStorageBudget {
+  quotaBytes: number | null // null = unlimited
+  usedBytes: number
 }
 
 // Enforces plan quotas (vehicles, leads, e-mails/month) for the current tenant.
 // Unknown plan ids (e.g. "demo") fall back to free limits.
 @Injectable()
 export class PlanLimitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: ObjectStorage,
+  ) {}
 
   async assertCanCreateVehicle(): Promise<void> {
     const { vehicles } = await this.limits()
@@ -61,19 +72,31 @@ export class PlanLimitsService {
     })
   }
 
+  // Snapshot for the uploads path: quota from plan, usage from stored files.
+  async photoStorageBudget(): Promise<PhotoStorageBudget> {
+    const { storageMb } = await this.limits()
+    const usedBytes = await this.photoStorageUsedBytes()
+    return { quotaBytes: storageMb === null ? null : storageMb * MB, usedBytes }
+  }
+
   async usageSummary(): Promise<PlanUsageSummary> {
     const plan = await this.plan()
-    const [vehicles, leads, emails] = await Promise.all([
+    const [vehicles, leads, emails, storageBytes] = await Promise.all([
       this.prisma.scoped.vehicle.count(),
       this.prisma.scoped.lead.count(),
       this.emailsSentThisMonth(),
+      this.photoStorageUsedBytes(),
     ])
     return {
       plan: plan.id,
       label: plan.label,
       limits: plan.limits,
-      usage: { vehicles, leads, emailsPerMonth: emails },
+      usage: { vehicles, leads, emailsPerMonth: emails, storageMb: Math.round(storageBytes / MB) },
     }
+  }
+
+  private photoStorageUsedBytes(): Promise<number> {
+    return this.storage.usedBytes(`vehicle-photos/${TenantContext.tenantId()!}`)
   }
 
   private async plan(): Promise<Plan> {

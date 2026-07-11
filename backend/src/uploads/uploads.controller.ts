@@ -17,6 +17,7 @@ export class UploadsController {
 
   @Post('vehicle-photos')
   @AdminOnly()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async vehiclePhotos(@Req() req: FastifyRequest) {
     if (!req.isMultipart()) {
       throw new BadRequestException('Envie as imagens como multipart/form-data.')

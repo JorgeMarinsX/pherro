@@ -8,4 +8,6 @@ export abstract class ObjectStorage {
   abstract publicUrl(key: string): string
   /** Inverse of publicUrl. Null = URL not owned by this storage (external/seed). */
   abstract keyFromUrl(url: string): string | null
+  /** Total stored bytes under a key prefix (e.g. `vehicle-photos/<tenantId>`). */
+  abstract usedBytes(prefix: string): Promise<number>
 }

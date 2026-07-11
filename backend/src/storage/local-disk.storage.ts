@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { Injectable, Logger } from '@nestjs/common'
 import { ObjectStorage } from './object-storage'
@@ -47,5 +47,29 @@ export class LocalDiskStorage extends ObjectStorage {
     if (!url.startsWith(UPLOADS_URL_PREFIX)) return null
     const key = url.slice(UPLOADS_URL_PREFIX.length)
     return /^[\w\-./]+$/.test(key) && !key.includes('..') ? key : null
+  }
+
+  async usedBytes(prefix: string): Promise<number> {
+    assertSafeKey(prefix)
+    return this.dirBytes(join(this.root, prefix))
+  }
+
+  private async dirBytes(dir: string): Promise<number> {
+    let entries
+    try {
+      entries = await readdir(dir, { withFileTypes: true })
+    } catch {
+      return 0 // no uploads yet for this prefix
+    }
+    let total = 0
+    for (const entry of entries) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        total += await this.dirBytes(path)
+      } else if (entry.isFile()) {
+        total += (await stat(path).catch(() => ({ size: 0 }))).size
+      }
+    }
+    return total
   }
 }

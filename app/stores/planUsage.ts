@@ -4,6 +4,7 @@ export const LIMIT_LABELS: Record<LimitKind, string> = {
   vehicles: 'veículos',
   leads: 'leads',
   emailsPerMonth: 'e-mails no mês',
+  storageMb: 'MB de fotos',
 }
 
 export interface LimitWarning {

@@ -6,6 +6,7 @@ export interface PlanLimits {
   vehicles: number | null // null = unlimited
   leads: number | null
   emailsPerMonth: number | null
+  storageMb: number | null // photo storage cap
 }
 
 export interface Plan {
@@ -24,7 +25,7 @@ export const PLANS: Record<string, Plan> = {
     label: 'Grátis',
     monthlyCents: 0,
     tagline: 'Para experimentar',
-    limits: { vehicles: 10, leads: 100, emailsPerMonth: 200 },
+    limits: { vehicles: 10, leads: 100, emailsPerMonth: 200, storageMb: 30 },
     features: [
       'Site da loja com endereço próprio',
       'Até 10 anúncios de veículos',
@@ -37,7 +38,7 @@ export const PLANS: Record<string, Plan> = {
     label: 'Início',
     monthlyCents: 9900,
     tagline: 'Solo ou lote pequeno',
-    limits: { vehicles: 50, leads: 500, emailsPerMonth: 1000 },
+    limits: { vehicles: 50, leads: 500, emailsPerMonth: 1000, storageMb: 150 },
     features: [
       'Até 50 veículos',
       'Até 500 leads',
@@ -50,7 +51,7 @@ export const PLANS: Record<string, Plan> = {
     label: 'Profissional',
     monthlyCents: 19900,
     tagline: 'Revenda em crescimento',
-    limits: { vehicles: 200, leads: 3000, emailsPerMonth: 5000 },
+    limits: { vehicles: 200, leads: 3000, emailsPerMonth: 5000, storageMb: 600 },
     highlight: true,
     features: [
       'Até 200 veículos',
@@ -64,7 +65,7 @@ export const PLANS: Record<string, Plan> = {
     label: 'Rede',
     monthlyCents: 39900,
     tagline: 'Multi-loja / alto volume',
-    limits: { vehicles: 1000, leads: null, emailsPerMonth: 20000 },
+    limits: { vehicles: 1000, leads: null, emailsPerMonth: 20000, storageMb: 3000 },
     features: [
       'Até 1.000 veículos',
       'Leads ilimitados',
