@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
@@ -9,10 +10,6 @@ import { RefreshTokenService } from './refresh-token.service'
 import type { AuthUser, JwtPayload } from './types'
 import { isPlatformAdminRole } from './roles'
 
-// Real argon2id hash of "dummy-password" — verify always fails, same cost as real.
-const DUMMY_HASH =
-  '$argon2id$v=19$m=65536,t=3,p=4$ZG93bnRpbWUtaXMtZmluZQ$Vw5w6PuKzKuNlhmW+I9c5wT5pIH8e1SqxArvuQHKa1c'
-
 const TTL_UNITS: Record<string, number> = { ms: 1, s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }
 
 function ttlToMs(ttl: string): number {
@@ -23,6 +20,10 @@ function ttlToMs(ttl: string): number {
 
 @Injectable()
 export class AuthService {
+  // Per-boot argon2id hash of random bytes — verify always fails at real-hash
+  // cost, and the hash value never exists in source or survives a restart.
+  private readonly dummyHash = UsersService.hash(randomBytes(32).toString('base64url'))
+
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
@@ -45,7 +46,7 @@ export class AuthService {
     // Locked account: same dummy-verify cost and same null as a bad password —
     // the response never reveals the lockout.
     if (await this.lockout.isLocked(lockScope, normalized)) {
-      await argon2.verify(DUMMY_HASH, password).catch(() => false)
+      await argon2.verify(await this.dummyHash, password).catch(() => false)
       return null
     }
 
@@ -54,7 +55,7 @@ export class AuthService {
       : await this.users.findPlatformAdminByEmail(normalized)
 
     if (!user || !user.isActive) {
-      await argon2.verify(DUMMY_HASH, password).catch(() => false)
+      await argon2.verify(await this.dummyHash, password).catch(() => false)
       await this.lockout.registerFailure(lockScope, normalized)
       return null
     }

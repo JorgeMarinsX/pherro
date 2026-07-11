@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
+import { jwtModuleOptions } from '../auth/jwt.options'
 import { ActiveTenantGuard } from './active-tenant.guard'
 import { TenantResolverService } from './tenant-resolver.service'
 
@@ -11,11 +12,7 @@ import { TenantResolverService } from './tenant-resolver.service'
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET')
-        if (!secret) throw new Error('JWT_SECRET not configured')
-        return { secret, signOptions: { algorithm: 'HS256' } }
-      },
+      useFactory: jwtModuleOptions,
     }),
   ],
   providers: [TenantResolverService, ActiveTenantGuard],

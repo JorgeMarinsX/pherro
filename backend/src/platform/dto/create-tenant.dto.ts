@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, Length, Matches, MinLength } from 'class-validator'
+import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator'
+import { IsStrongPassword } from '../../auth/password-strength'
 
 export class CreateTenantDto {
   // DNS-label safe: lowercase alnum + inner hyphens (→ <slug>.APP_BASE_DOMAIN).
@@ -17,6 +18,8 @@ export class CreateTenantDto {
   adminEmail!: string
 
   @MinLength(8)
+  @MaxLength(128)
+  @IsStrongPassword()
   adminPassword!: string
 
   // Billing document (CPF 11 / CNPJ 14 digits). Optional — required only to bill.

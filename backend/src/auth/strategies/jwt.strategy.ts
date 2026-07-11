@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { TenantContext } from '../../tenant/tenant-context'
 import { UsersService } from '../../users/users.service'
+import { JWT_AUDIENCE, JWT_ISSUER } from '../jwt.options'
 import { PLATFORM_ADMIN } from '../roles'
 import type { AuthUser, JwtPayload } from '../types'
 
@@ -19,6 +20,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: secret,
+      algorithms: ['HS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
     })
   }
 

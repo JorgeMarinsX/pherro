@@ -1,4 +1,5 @@
-import { IsEmail, IsIn, IsString, Length, Matches, MinLength } from 'class-validator'
+import { IsEmail, IsIn, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator'
+import { IsStrongPassword } from '../../auth/password-strength'
 import { PAID_PLAN_IDS } from '../../billing/plans'
 
 // Self-service signup: paid plans only. A store is provisioned PENDING_PAYMENT and goes
@@ -20,6 +21,8 @@ export class SignupDto {
   adminEmail!: string
 
   @MinLength(8)
+  @MaxLength(128)
+  @IsStrongPassword()
   adminPassword!: string
 
   // Billing document (CPF 11 / CNPJ 14 digits) — required: every signup is billed.

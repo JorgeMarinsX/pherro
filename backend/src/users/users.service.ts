@@ -63,10 +63,12 @@ export class UsersService {
 
   // Auth lookups: tenant User reads bypass the request-scoped extension (login
   // runs before tenant scoping is bound), so set the RLS GUC explicitly per tx.
+  // isActive in the where: disabled account and unknown e-mail are the same no-row
+  // path — no timing oracle between them.
   async findByEmailInTenant(email: string, tenantId: string) {
     return this.inTenant(tenantId, (tx) =>
-      tx.user.findUnique({
-        where: { tenantId_email: { tenantId, email: email.toLowerCase() } },
+      tx.user.findFirst({
+        where: { tenantId, email: email.toLowerCase(), isActive: true },
       }),
     )
   }
@@ -79,8 +81,8 @@ export class UsersService {
   }
 
   async findPlatformAdminByEmail(email: string) {
-    const a = await this.prisma.platformAdmin.findUnique({
-      where: { email: email.toLowerCase() },
+    const a = await this.prisma.platformAdmin.findFirst({
+      where: { email: email.toLowerCase(), isActive: true },
     })
     return a ? this.asPlatformUser(a) : null
   }

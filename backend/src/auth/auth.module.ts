@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma/prisma.module'
 import { UsersModule } from '../users/users.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
+import { jwtModuleOptions } from './jwt.options'
 import { AdminOrTokenGuard } from './guards/admin-or-token.guard'
 import { AdminTokenGuard } from './guards/admin-token.guard'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
@@ -28,11 +29,7 @@ import { LocalStrategy } from './strategies/local.strategy'
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET')
-        if (!secret) throw new Error('JWT_SECRET not configured')
-        return { secret, signOptions: { algorithm: 'HS256' } }
-      },
+      useFactory: jwtModuleOptions,
     }),
   ],
   providers: [
