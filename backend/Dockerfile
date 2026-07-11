@@ -15,6 +15,8 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bunx prisma generate
+# Pre-create so the named volume inherits bun ownership (else root-owned = EACCES).
+RUN mkdir -p /app/uploads && chown bun:bun /app/uploads
 
 USER bun
 EXPOSE 3001
