@@ -1,8 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import { EmailTemplatesService } from '../email/email-templates.service'
+import { tenantUrl } from '../email/tenant-urls'
 import { PrismaService } from '../prisma/prisma.service'
 import { TenantResolverService } from '../tenant/tenant-resolver.service'
 import { AsaasService } from './asaas.service'
+import { billingGraceDays } from './dunning.config'
 import { centsToBrl, isPaidPlan, PLANS } from './plans'
 
 // Data carried in by the caller (avoids re-reading RLS-protected tables here).
@@ -16,7 +19,7 @@ export interface EnsureCustomerInput {
 export interface AsaasWebhookPayload {
   id: string
   event: string
-  payment?: { customer?: string; subscription?: string; status?: string }
+  payment?: { customer?: string; subscription?: string; status?: string; invoiceUrl?: string }
   [key: string]: unknown
 }
 
@@ -28,6 +31,7 @@ export class BillingService {
     private readonly prisma: PrismaService,
     private readonly asaas: AsaasService,
     private readonly resolver: TenantResolverService,
+    private readonly email: EmailTemplatesService,
   ) {}
 
   // Best-effort: creates the Asaas customer for a tenant and stores its id.
@@ -193,7 +197,7 @@ export class BillingService {
 
     await this.prisma.tenant.update({
       where: { id: tenantId },
-      data: { plan: 'free', asaasSubscriptionId: null },
+      data: { plan: 'free', asaasSubscriptionId: null, overdueSince: null },
     })
     this.logger.log(`Tenant ${tenantId} subscription cancelled → free`)
     return { plan: 'free' }
@@ -231,7 +235,7 @@ export class BillingService {
 
     const tenant = await this.prisma.tenant.findUnique({
       where: { asaasCustomerId: customerId },
-      select: { id: true, slug: true, plan: true, status: true, customDomain: true },
+      select: { id: true, slug: true, name: true, plan: true, status: true, customDomain: true, overdueSince: true },
     })
     if (!tenant) {
       this.logger.warn(`Asaas event ${payload.id}: no tenant for customer ${customerId}`)
@@ -241,23 +245,99 @@ export class BillingService {
     switch (payload.event) {
       case 'PAYMENT_CONFIRMED':
       case 'PAYMENT_RECEIVED':
-        // First paid invoice takes a self-signup store live.
-        if (tenant.status === 'PENDING_PAYMENT') {
-          await this.prisma.tenant.update({ where: { id: tenant.id }, data: { status: 'ACTIVE' } })
-          await this.resolver.invalidateTenant(tenant)
-          this.logger.log(`Tenant ${tenant.slug}: activated on payment (${payload.event})`)
-        } else {
-          this.logger.log(`Tenant ${tenant.slug}: payment ok (${payload.event})`)
-        }
+        await this.handlePayment(tenant, payload.event)
         break
       case 'PAYMENT_OVERDUE':
-        this.logger.warn(`Tenant ${tenant.slug}: payment overdue`)
+        await this.handleOverdue(tenant, payload)
         break
       case 'PAYMENT_REFUNDED':
         this.logger.warn(`Tenant ${tenant.slug}: payment refunded — review manually`)
         break
       default:
         this.logger.log(`Asaas event ${payload.event} for tenant ${tenant.slug} — no handler yet`)
+    }
+  }
+
+  private async handlePayment(
+    tenant: { id: string; slug: string; name: string; status: string; customDomain: string | null; overdueSince: Date | null },
+    event: string,
+  ): Promise<void> {
+    // First paid invoice takes a self-signup store live; a paid invoice also
+    // lifts suspension and closes any open dunning window.
+    if (tenant.status === 'PENDING_PAYMENT' || tenant.status === 'SUSPENDED') {
+      await this.prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { status: 'ACTIVE', overdueSince: null },
+      })
+      await this.resolver.invalidateTenant(tenant)
+      this.logger.log(`Tenant ${tenant.slug}: activated on payment (${event}, was ${tenant.status})`)
+      if (tenant.status === 'SUSPENDED') {
+        await this.notifyAdmins(tenant.id, 'account_reactivated', {
+          SHOP_NAME: tenant.name,
+          ADMIN_URL: tenantUrl(tenant.slug, '/admin'),
+        })
+      }
+      return
+    }
+    if (tenant.overdueSince) {
+      await this.prisma.tenant.update({ where: { id: tenant.id }, data: { overdueSince: null } })
+      this.logger.log(`Tenant ${tenant.slug}: overdue cleared on payment (${event})`)
+      return
+    }
+    this.logger.log(`Tenant ${tenant.slug}: payment ok (${event})`)
+  }
+
+  private async handleOverdue(
+    tenant: { id: string; slug: string; name: string; status: string; overdueSince: Date | null },
+    payload: AsaasWebhookPayload,
+  ): Promise<void> {
+    // Only ACTIVE stores enter dunning; repeat events keep the original window.
+    if (tenant.status !== 'ACTIVE' || tenant.overdueSince) {
+      this.logger.warn(`Tenant ${tenant.slug}: payment overdue (status=${tenant.status}, window already open=${!!tenant.overdueSince})`)
+      return
+    }
+    const now = new Date()
+    const deadline = new Date(now.getTime() + billingGraceDays() * 24 * 60 * 60 * 1000)
+    await this.prisma.tenant.update({ where: { id: tenant.id }, data: { overdueSince: now } })
+    this.logger.warn(`Tenant ${tenant.slug}: dunning started, suspension after ${deadline.toISOString()}`)
+    await this.notifyAdmins(tenant.id, 'payment_overdue', {
+      SHOP_NAME: tenant.name,
+      GRACE_DEADLINE: deadline.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+      PAY_URL: payload.payment?.invoiceUrl || tenantUrl(tenant.slug, '/admin/plano'),
+    })
+  }
+
+  // Latest invoice URL for a subscription — best-effort (dunning e-mails).
+  async latestInvoiceUrl(subscriptionId: string | null): Promise<string | null> {
+    if (!subscriptionId || !this.asaas.isConfigured) return null
+    try {
+      const payments = await this.asaas.listSubscriptionPayments(subscriptionId)
+      return payments.data[0]?.invoiceUrl ?? null
+    } catch {
+      return null
+    }
+  }
+
+  // Active ADMIN e-mails of a tenant. User rows sit behind FORCE RLS — bind the GUC.
+  async adminEmails(tenantId: string): Promise<string[]> {
+    const users = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`
+      return tx.user.findMany({
+        where: { tenantId, role: 'ADMIN', isActive: true },
+        select: { email: true },
+      })
+    })
+    return users.map((u) => u.email)
+  }
+
+  // Best-effort transactional send to every tenant admin.
+  async notifyAdmins(tenantId: string, template: 'payment_overdue' | 'account_suspended' | 'account_reactivated', vars: Record<string, string>): Promise<void> {
+    try {
+      const emails = await this.adminEmails(tenantId)
+      if (emails.length === 0) return
+      await this.email.sendTransactional(template, emails, vars)
+    } catch (e) {
+      this.logger.error(`Failed sending "${template}" for tenant ${tenantId}`, e as Error)
     }
   }
 }

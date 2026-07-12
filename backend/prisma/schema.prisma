@@ -25,6 +25,11 @@ model Tenant {
   cpfCnpj             String?
   asaasCustomerId     String? @unique
   asaasSubscriptionId String? @unique
+  // Dunning: first PAYMENT_OVERDUE timestamp; cleared on payment. Grace sweep
+  // suspends when now > overdueSince + BILLING_GRACE_DAYS.
+  overdueSince        DateTime?
+  // LGPD: when the owner accepted the Termos de Uso + Política de Privacidade.
+  termsAcceptedAt     DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

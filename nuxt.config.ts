@@ -14,6 +14,7 @@ export default defineNuxtConfig({
     sessionSecret: process.env.SESSION_SECRET ?? '',
     public: {
       appBaseDomain: process.env.APP_BASE_DOMAIN ?? 'pherro.app',
+      sentryDsn: process.env.SENTRY_DSN_FRONTEND ?? '',
     },
   },
   app: {

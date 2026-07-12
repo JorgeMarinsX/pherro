@@ -1,4 +1,4 @@
-export type TenantStatus = 'ACTIVE' | 'SUSPENDED'
+export type TenantStatus = 'ACTIVE' | 'PENDING_PAYMENT' | 'SUSPENDED'
 export type DomainStatus = 'NONE' | 'PENDING' | 'VERIFIED' | 'ACTIVE'
 
 export type Tenant = {

@@ -22,8 +22,9 @@ export default defineEventHandler((event) => {
   if (host.startsWith('app.') && !path.startsWith('/platform')) {
     return sendRedirect(event, '/platform', 302)
   }
-  // Apex/www: marketing + platform pages only — storefront routes don't exist here.
-  if (path !== '/' && path !== '/cadastro' && !path.startsWith('/platform')) {
+  // Apex/www: marketing + platform + legal pages only — storefront routes don't exist here.
+  const apexPages = new Set(['/', '/cadastro', '/termos', '/privacidade'])
+  if (!apexPages.has(path) && !path.startsWith('/platform')) {
     return sendRedirect(event, '/', 302)
   }
 })

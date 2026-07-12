@@ -32,6 +32,7 @@ const state = reactive({
   cpfCnpj: '',
   adminPassword: '',
   passwordConfirm: '',
+  termsAccepted: false,
 })
 
 const cpfCnpjDigits = computed(() => state.cpfCnpj.replace(/\D/g, ''))
@@ -73,6 +74,9 @@ function validate(s: typeof state) {
   if (s.passwordConfirm !== s.adminPassword) {
     errors.push({ name: 'passwordConfirm', message: 'As senhas não conferem.' })
   }
+  if (!s.termsAccepted) {
+    errors.push({ name: 'termsAccepted', message: 'Aceite os termos para continuar.' })
+  }
   return errors
 }
 
@@ -105,6 +109,7 @@ async function onSubmit() {
         adminPassword: state.adminPassword,
         cpfCnpj: cpfCnpjDigits.value,
         plan: planId.value,
+        termsAccepted: state.termsAccepted,
       },
     })
     created.value = { slug: tenant.slug, invoiceUrl: tenant.invoiceUrl }
@@ -276,6 +281,19 @@ async function onSubmit() {
               size="lg"
               class="w-full"
             />
+          </UFormField>
+
+          <UFormField name="termsAccepted" required>
+            <UCheckbox v-model="state.termsAccepted">
+              <template #label>
+                <span class="text-sm text-neutral-600">
+                  Li e aceito os
+                  <NuxtLink to="/termos" target="_blank" class="text-primary-600 underline hover:text-primary-700">Termos de Uso</NuxtLink>
+                  e a
+                  <NuxtLink to="/privacidade" target="_blank" class="text-primary-600 underline hover:text-primary-700">Política de Privacidade</NuxtLink>.
+                </span>
+              </template>
+            </UCheckbox>
           </UFormField>
 
           <UButton

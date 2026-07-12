@@ -3,6 +3,7 @@ import { CacheModule } from '@nestjs/cache-manager'
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
+import { ScheduleModule } from '@nestjs/schedule'
 import { ThrottlerModule } from '@nestjs/throttler'
 import type Redis from 'ioredis'
 import { AppController } from './app.controller'
@@ -30,6 +31,7 @@ import { WhatsappNumbersModule } from './whatsapp-numbers/whatsapp-numbers.modul
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     CacheModule.register({ isGlobal: true, ttl: 60_000, max: 500 }),
     RedisModule,
     // Redis-backed counters: survive restarts, shared if we ever run replicas.

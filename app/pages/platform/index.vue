@@ -158,10 +158,10 @@ async function onSubmitted() {
 
           <template #status-cell="{ row }">
             <UBadge
-              :color="row.original.status === 'ACTIVE' ? 'success' : 'warning'"
+              :color="row.original.status === 'ACTIVE' ? 'success' : row.original.status === 'PENDING_PAYMENT' ? 'neutral' : 'warning'"
               variant="subtle"
             >
-              {{ row.original.status === 'ACTIVE' ? 'Ativa' : 'Suspensa' }}
+              {{ row.original.status === 'ACTIVE' ? 'Ativa' : row.original.status === 'PENDING_PAYMENT' ? 'Aguardando pagamento' : 'Suspensa' }}
             </UBadge>
           </template>
 

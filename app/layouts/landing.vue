@@ -43,6 +43,8 @@ const year = new Date().getFullYear()
         </div>
         <div class="flex items-center gap-4 text-xs text-neutral-500">
           <span>© {{ year }} Pherro. Todos os direitos reservados.</span>
+          <NuxtLink to="/termos" class="hover:text-neutral-700">Termos de Uso</NuxtLink>
+          <NuxtLink to="/privacidade" class="hover:text-neutral-700">Privacidade</NuxtLink>
           <NuxtLink to="/platform/login" class="hover:text-neutral-700">Acesso da plataforma</NuxtLink>
         </div>
       </UContainer>

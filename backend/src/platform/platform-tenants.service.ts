@@ -82,6 +82,7 @@ export class PlatformTenantsService {
       cpfCnpj: dto.cpfCnpj,
       plan: dto.plan,
       status: 'PENDING_PAYMENT',
+      termsAcceptedAt: new Date(),
     })
 
     // Create the subscription now so the owner can pay right away. Unconfigured Asaas
@@ -108,6 +109,7 @@ export class PlatformTenantsService {
     cpfCnpj: string | null
     plan: string
     status: 'ACTIVE' | 'PENDING_PAYMENT'
+    termsAcceptedAt?: Date
   }) {
     const slug = input.slug.toLowerCase()
     if (RESERVED_SLUGS.has(slug)) {
@@ -125,6 +127,7 @@ export class PlatformTenantsService {
             plan: input.plan,
             cpfCnpj: input.cpfCnpj,
             status: input.status,
+            termsAcceptedAt: input.termsAcceptedAt ?? null,
           },
         })
         // Owned rows sit behind FORCE RLS — bind the new tenant's GUC to this tx.

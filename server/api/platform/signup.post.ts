@@ -10,6 +10,7 @@ const bodySchema = z.object({
   adminPassword: z.string().min(8),
   cpfCnpj: z.string().regex(/^\d{11}$|^\d{14}$/),
   plan: z.enum(['inicio', 'profissional', 'rede']),
+  termsAccepted: z.literal(true),
 })
 
 export default defineEventHandler(async (event) => {

@@ -3,11 +3,22 @@ import { mkdir } from 'node:fs/promises'
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common'
-import { NestFactory, Reflector } from '@nestjs/core'
+import { HttpAdapterHost, NestFactory, Reflector } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
+import * as Sentry from '@sentry/bun'
 import { AppModule } from './app.module'
+import { SentryExceptionFilter } from './sentry-exception.filter'
 import { uploadsRootDir } from './storage/local-disk.storage'
 import { MAX_FILE_BYTES, MAX_FILES_PER_REQUEST } from './uploads/uploads.service'
+
+// No DSN = disabled (captureException becomes a no-op).
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV ?? 'development',
+    tracesSampleRate: 0,
+  })
+}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -54,6 +65,7 @@ async function bootstrap() {
   )
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
+  app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter))
 
   const port = Number(process.env.PORT ?? 3001)
   await app.listen(port, '0.0.0.0')

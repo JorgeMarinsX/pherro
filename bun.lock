@@ -9,6 +9,7 @@
         "@iconify-json/simple-icons": "^1.2.0",
         "@nuxt/ui": "^4.7.1",
         "@pinia/nuxt": "^0.11.0",
+        "@sentry/vue": "^10.65.0",
         "jspdf": "^3.0.1",
         "jspdf-autotable": "^5.0.2",
         "nuxt": "^4.4.5",
@@ -521,6 +522,22 @@
     "@rollup/rollup-win32-x64-gnu": ["@rollup/rollup-win32-x64-gnu@4.60.3", "", { "os": "win32", "cpu": "x64" }, "sha512-E5Eb5H/DpxaoXH++Qkv28RcUJboMopmdDUALBczvHMf7hNIxaDZqwY5lK12UK1BHacSmvupoEWGu+n993Z0y1A=="],
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.60.3", "", { "os": "win32", "cpu": "x64" }, "sha512-hPt/bgL5cE+Qp+/TPHBqptcAgPzgj46mPcg/16zNUmbQk0j+mOEQV/+Lqu8QRtDV3Ek95Q6FeFITpuhl6OTsAA=="],
+
+    "@sentry/browser": ["@sentry/browser@10.65.0", "", { "dependencies": { "@sentry/browser-utils": "10.65.0", "@sentry/conventions": "^0.15.1", "@sentry/core": "10.65.0", "@sentry/feedback": "10.65.0", "@sentry/replay": "10.65.0", "@sentry/replay-canvas": "10.65.0" } }, "sha512-XUDDsx0qxzeIlcOu1fDEqTcDl0eiOqghsgV+ReuuNP4jYjZ9kUQxE3rXWM5mlT1pBi4VaQ4FHqvQZZrRXy+oDw=="],
+
+    "@sentry/browser-utils": ["@sentry/browser-utils@10.65.0", "", { "dependencies": { "@sentry/conventions": "^0.15.1", "@sentry/core": "10.65.0" } }, "sha512-4J0mkfNJAGUOkpg1ZggizyftFTn9N20b+Jl87UnWsDUkNG0Ic1l/FIzMPTVxXrAnhBGu0ULO0TFWMoQ5s3QtZw=="],
+
+    "@sentry/conventions": ["@sentry/conventions@0.15.1", "", {}, "sha512-ZLP8bRdMON3prWE2tJyImuYscCxdcJeIPIhrOs/rgyFm3C1nCh1B6gdvPj3AZ5zW08oSFFCsq7T+tYEW3h8MNA=="],
+
+    "@sentry/core": ["@sentry/core@10.65.0", "", { "dependencies": { "@sentry/conventions": "^0.15.1" } }, "sha512-3aqtmM5NgNGo45BNaaBzi0LPQZAw//NEL4HKS5fXm12pJMa4KEkze8DEKnkTEIrGnWaOJKamecHKlnNg/Mqf/Q=="],
+
+    "@sentry/feedback": ["@sentry/feedback@10.65.0", "", { "dependencies": { "@sentry/core": "10.65.0" } }, "sha512-ck8h7wgd3F3bYNk0v1OgohmyLBeXcKxqlfBJRtQq4k6KZUq+pXimOG7ckNguVMYjCo3PEfuG+ckKc21yqotKug=="],
+
+    "@sentry/replay": ["@sentry/replay@10.65.0", "", { "dependencies": { "@sentry/browser-utils": "10.65.0", "@sentry/core": "10.65.0" } }, "sha512-aW988CcQBNArbOMzOFOziipHz6uQyXSa4i5CPWsu+nhVPTJHafosi5Lv9n6NM/icDX5e23VdnX6mZd8SyJuo8A=="],
+
+    "@sentry/replay-canvas": ["@sentry/replay-canvas@10.65.0", "", { "dependencies": { "@sentry/core": "10.65.0", "@sentry/replay": "10.65.0" } }, "sha512-A7X3RVk1Gk+knK8Ip/2EjejckNCLgCfRZo6eGlsy6qyz904KBpYmys1a0o7QkzFRjhIndjHAfcVxwt6jSLJlrQ=="],
+
+    "@sentry/vue": ["@sentry/vue@10.65.0", "", { "dependencies": { "@sentry/browser": "10.65.0", "@sentry/conventions": "^0.15.1", "@sentry/core": "10.65.0" }, "peerDependencies": { "@tanstack/vue-router": "^1.64.0", "pinia": "2.x || 3.x", "vue": "2.x || 3.x" }, "optionalPeers": ["@tanstack/vue-router", "pinia"] }, "sha512-r+QO7O4xKJtm+ixmqqrfDyLuQgFn0Ffh7EaioqEMxfKH/LuqV9+qjmt476oU7OdNk1NyiQgn8v0tSKJTKy2hNA=="],
 
     "@simple-git/args-pathspec": ["@simple-git/args-pathspec@1.0.3", "", {}, "sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA=="],
 

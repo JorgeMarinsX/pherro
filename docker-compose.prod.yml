@@ -1,6 +1,9 @@
 # Pherro — PRODUCTION stack (Portainer + Traefik).
 #
-#   Deploy:            docker compose -f docker-compose.prod.yml up -d --build
+# Images come from the private registry (DOCKER_REGISTRY), built + pushed by the
+# GitHub Actions pipeline, which then hits the Portainer stack webhook to
+# re-pull and redeploy. Manual deploy: docker compose -f docker-compose.prod.yml pull && up -d
+#
 #   First platform admin (one-off, idempotent):
 #                      docker compose -f docker-compose.prod.yml run --rm backend \
 #                        bun run scripts/create-platform-admin.ts
@@ -66,10 +69,7 @@ services:
     logging: *logging
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: pherro-app:prod
+    image: ${DOCKER_REGISTRY:?set DOCKER_REGISTRY}/pherro-app:latest
     restart: always
     depends_on:
       backend:
@@ -81,6 +81,8 @@ services:
       NUXT_ADMIN_TOKEN: ${BACKEND_ADMIN_TOKEN}
       NUXT_SESSION_SECRET: ${SESSION_SECRET}
       NUXT_PUBLIC_APP_BASE_DOMAIN: ${APP_BASE_DOMAIN}
+      # Browser error tracking (Sentry). Empty = disabled.
+      NUXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN_FRONTEND:-}
     networks:
       - edge
       - internal
@@ -112,10 +114,7 @@ services:
     logging: *logging
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: pherro-backend:prod
+    image: ${DOCKER_REGISTRY:?set DOCKER_REGISTRY}/pherro-backend:latest
     restart: always
     depends_on:
       db:
@@ -144,6 +143,10 @@ services:
       ASAAS_API_KEY: ${ASAAS_API_KEY:-}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
+      # Dunning: days between first overdue invoice and suspension.
+      BILLING_GRACE_DAYS: ${BILLING_GRACE_DAYS:-7}
+      # Error tracking (Sentry). Empty = disabled.
+      SENTRY_DSN: ${SENTRY_DSN:-}
       # E-mail (Resend). Empty key = sends skipped, flows still work.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM: ${RESEND_FROM:-Pherro <onboarding@resend.dev>}
@@ -167,9 +170,7 @@ services:
   # Restore:       docker compose -f docker-compose.prod.yml run --rm backup restore <STAMP>
   # Runbook: instructions/backup_restore.md
   backup:
-    build:
-      context: ./ops/backup
-    image: pherro-backup:prod
+    image: ${DOCKER_REGISTRY:?set DOCKER_REGISTRY}/pherro-backup:latest
     restart: always
     depends_on:
       db:
@@ -191,6 +192,21 @@ services:
       # internal reaches db; edge provides egress to the off-server MinIO
       # (pherro-internal is internal: true — no outbound route).
       - internal
+      - edge
+    logging: *logging
+
+  # ── Disk watchdog: alerts ALERT_WEBHOOK_URL when host disk crosses threshold ──
+  alerts:
+    image: ${DOCKER_REGISTRY:?set DOCKER_REGISTRY}/pherro-alerts:latest
+    restart: always
+    environment:
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL}
+      DISK_ALERT_THRESHOLD: ${DISK_ALERT_THRESHOLD:-80}
+      DISK_CHECK_INTERVAL: ${DISK_CHECK_INTERVAL:-900}
+    volumes:
+      - /:/host:ro
+    networks:
+      # edge only for webhook egress; nothing listens.
       - edge
     logging: *logging
 
